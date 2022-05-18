@@ -9,5 +9,6 @@ def main():
     layout = dtensor.Layout(['batch', dtensor.UNSHARDED], mesh)
     data = dtensor.call_with_layout(tf.ones, layout, shape=(4, 100))
     print(data)
+    print(tf.reduce_sum(data))
 
 main()
