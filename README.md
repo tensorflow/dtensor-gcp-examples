@@ -12,9 +12,11 @@ cluster of GPUs.
 - bootstrap-cluster.sh: commands to start the cluster and deploy the application.
   The bootstrap produces a cluster-run.sh. 
 
-- cluster-run.sh: (produced by bootstrap-cluster.sh) runs the proviced command
+- cluster-run.sh: (produced by bootstrap-cluster.sh) runs the provided command
   on all VMs in the cluster.
 
+- cluster-delete.sh: (produced by bootstrap-cluster.sh) deletes all VMs
+  in the cluster.
 
 Steps to run this application:
 
@@ -25,6 +27,7 @@ $ git clone ...
 $ cd dtensor-gpu-gcp
 $ bash bootstrap-cluster.sh
 $ bash cluster-run.sh "cd dtensor-gpu-gcp;bash run-multi-nodes.sh"
+$ bash cluster-delete.sh
 ```
 
 ### multi-client single Node multi-GPU

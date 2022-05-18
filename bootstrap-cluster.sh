@@ -44,6 +44,10 @@ for i in ${INSTANCES[@]}; do
 done
 EOF
 
+cat > cluster-delete.sh <<EOF
+gcloud compute instances delete ${INSTANCES[@]} --zone=$ZONE 
+EOF
+
 gcloud compute instances bulk create --name-pattern="${NAME_PREFIX}-###" \
      --zone=$ZONE    \
      --image-family=$IMAGE_FAMILY     \
