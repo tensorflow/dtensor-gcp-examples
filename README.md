@@ -36,5 +36,13 @@ The project also contains an example launcher that split a VM into
 multiple DTensor clients, hiding unwanted GPUs via `CUDA_VISIBILE_GPU` for
 each client.
 
+- bootstrap-single-node.sh: commands to start the cluster and deploy the application.
+  The bootstrap produces a single-node-run.sh.
+
+- single-node-run.sh: (produced by bootstrap-single-node.sh) runs the provided command
+  on the node.
+
+- single-node-delete.sh: (produced by bootstrap-single-node.sh) deletes the VM
+
 - run-single-node.sh: DTensor application launcher that splits a single node
   into multiple clients. Expects a 4 (physical) GPU node.
