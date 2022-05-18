@@ -7,7 +7,7 @@ for i in 0 1 2 3; do
 (
 export CUDA_VISIBLE_DEVICES=${i}
 export DTENSOR_CLIENT_ID=${i}
-python dtensor-client.py
+exec $*
 ) &
 done
 wait
