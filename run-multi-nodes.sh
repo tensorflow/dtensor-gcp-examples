@@ -11,6 +11,6 @@ export DTENSOR_JOB_NAME=worker
 export DTENSOR_NUM_CLIENTS=`python get-clients.py`
 
 for i in $(python get-clients.py ${HOSTNAME}); do
-  export DTENSOR_CLIENTS_ID="$i"
+  export DTENSOR_CLIENT_ID="$i"
   python dtensor-client.py
 done
