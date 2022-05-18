@@ -13,7 +13,7 @@ export INSTANCE_TYPE="n1-standard-8"
 export COUNT=4
 export NAME_PREFIX="dtensor-cluster"
 export PORT=9898
-export TAG="DTENSOR-CLUSTER-NODE"
+export TAGS="dtensor-cluster-node"
 
 # If there is a proxy, use it (For Googlers).
 if which corp-ssh-helper > /dev/null; then
@@ -59,7 +59,8 @@ gcloud compute instances bulk create --name-pattern="${NAME_PREFIX}-###" \
      --boot-disk-size=120GB   \
      --metadata="install-nvidia-driver=True"  \
      --count=4 \
-     --tag=${TAG} \
+     --tags=${TAGS} \
+     --scopes=cloud-platform \
      --metadata-from-file=startup-script=/tmp/bootstrap-dtensor-jobs.sh
 
 while bash cluster-run.sh ls /etc/dtensor-jobs |grep 'No such file\|exited with return code'; do
