@@ -60,7 +60,6 @@ gcloud compute instances bulk create --name-pattern="${NAME_PREFIX}-###" \
      --metadata="install-nvidia-driver=True"  \
      --count=4 \
      --tags=${TAGS} \
-     --scopes=cloud-platform \
      --metadata-from-file=startup-script=/tmp/bootstrap-dtensor-jobs.sh
 
 while bash cluster-run.sh ls /etc/dtensor-jobs |grep 'No such file\|exited with return code'; do
