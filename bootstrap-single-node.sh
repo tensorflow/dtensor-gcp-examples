@@ -25,7 +25,7 @@ INSTANCES=($NAME)
 cat > single-node-run.sh <<EOF
 for i in ${INSTANCES[@]}; do
   echo Running on "\${i}" "\$*"
-  gcloud compute ssh \$i --zone=$ZONE -- -q -n ${EXTRA_SSH_ARGS} bash -c -l "'\$*'" > /tmp/\${i}.log 2>&1 &
+  gcloud compute ssh \$i --zone=$ZONE -- -t -q -n ${EXTRA_SSH_ARGS} bash -c -l "'\$*'" > /tmp/\${i}.log 2>&1 &
 done
 wait
 for i in ${INSTANCES[@]}; do
