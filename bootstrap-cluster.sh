@@ -73,3 +73,5 @@ bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
 
 echo "Next, run the clients with,"
 echo '  bash cluster-run.sh "cd dtensor-gpu-gcp; bash run-multi-nodes.sh"'
+echo "When done, delete the cluster with,"
+echo '  bash cluster-delete.sh '
