@@ -58,6 +58,6 @@ bash single-node-run.sh "cd dtensor-gpu-gcp; git pull"
 bash single-node-run.sh "ls -l dtensor-gpu-gcp;"
 
 echo "Next, run the clients with,"
-echo '  bash single-node-run.sh "cd dtensor-gpu-gcp; bash run-multi-nodes.sh"'
+echo '  bash single-node-run.sh "cd dtensor-gpu-gcp; bash run-single-node.sh"'
 echo "When done, delete the single-node with,"
 echo '  bash single-node-delete.sh '
