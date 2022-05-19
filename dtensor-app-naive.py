@@ -1,3 +1,9 @@
+"""This is a naive dtensor application.
+
+It performs a global reduce sum on a mesh of 4 devices. The 4 devices can
+be on the same client or on different clients.
+"""
+
 import tensorflow as tf
 from tensorflow.experimental import dtensor
 

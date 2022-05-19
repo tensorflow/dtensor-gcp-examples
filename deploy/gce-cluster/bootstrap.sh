@@ -52,7 +52,12 @@ bash cluster-run.sh "if ! [[ -d dtensor-gpu-gcp ]]; then git clone https://githu
 bash cluster-run.sh "cd dtensor-gpu-gcp; git pull"
 bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
 
-echo "Next, run the clients with,"
-echo '  bash cluster-run.sh "./launch python dtensor-gpu-gcp/dtensor-client.py"'
-echo "When done, delete the cluster with,"
-echo '  bash cluster-delete.sh '
+cat <<EOF
+Next, run the application with,
+
+  bash cluster-run.sh "./launch python dtensor-gpu-gcp/dtensor-app-naive.py"
+
+When done, delete the cluster with,
+
+  bash cluster-delete.sh
+EOF
