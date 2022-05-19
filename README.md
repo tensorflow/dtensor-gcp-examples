@@ -34,7 +34,8 @@ In each `deploy/*` directory:
 - cluster-delete.sh: (produced by bootstrap.sh) deletes all VMs
   in the cluster.
 
-Steps to run the application, e..g using the GCE cluster example:
+## Running as multi-client
+To run the application with multiple clients, e.g using the GCE cluster example:
 
 ```
 $ gcloud auth login ...
@@ -43,8 +44,19 @@ $ git clone ...
 $ cd dtensor-gpu-gcp
 
 # Run from the cluster deployment:
-$ cd deploy/cluster
+$ cd deploy/gce-cluster
 $ bash bootstrap.sh
-$ bash cluster-run.sh "bash launch.sh python dtensor-gpu-gcp/dtensor-client.py"
+$ bash cluster-run.sh "./launch python dtensor-gpu-gcp/dtensor-app-naive.py"
+$ bash cluster-delete.sh
+```
+
+## Running as single-client
+The gce-node deployment can also run with a single client.
+Just skip `./launch` and run the script as a regular python application:
+
+```
+$ cd deploy/gce-node
+$ bash bootstrap.sh
+$ bash cluster-run.sh "export TF_CPP_MIN_LOG_LEVEL=3 python dtensor-gpu-gcp/dtensor-app-naive.py"
 $ bash cluster-delete.sh
 ```
