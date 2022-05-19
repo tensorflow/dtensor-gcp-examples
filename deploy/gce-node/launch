@@ -1,3 +1,5 @@
+#! /bin/bash
+
 export TF_CPP_MIN_LOG_LEVEL=3
 export DTENSOR_JOB_NAME=worker
 export DTENSOR_JOBS=localhost:9890,localhost:9891,localhost:9892,localhost:9893

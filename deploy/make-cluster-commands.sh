@@ -12,14 +12,22 @@ else
 fi
 
 cat > cluster-run.sh <<EOF
+PIDS=()
+mkdir -p /tmp/dtensor/pids
 for i in ${INSTANCES[@]}; do
   echo Running on "\${i}" "\$*"
-  gcloud compute ssh \$i --zone=$ZONE -- -t -q -n "${EXTRA_SSH_ARGS}" bash -c -l "'\$*'" > /tmp/\${i}.log 2>&1 &
+  gcloud compute ssh \$i --zone=us-west1-b -- -t -q -n "-o ProxyCommand=corp-ssh-helper %h %p" bash -c -l "'\$*'" > /tmp/\${i}.log 2>&1 &
+  CPID=\$!
+  PIDS+=("\${CPID}")
+  echo \$i > "/tmp/dtensor/pids/\${CPID}"
 done
-wait
-for i in ${INSTANCES[@]}; do
-  echo ===Log from "\${i}"===
-  cat /tmp/\${i}.log
+
+while [[ -n "\${PIDS}" ]]; do
+  wait -p CPID -fn "\${PIDS[@]}"
+  PIDS=(\${PIDS[@]/\$CPID})
+  NODE=\$(cat /tmp/dtensor/pids/\${CPID})
+  echo ===Log from "\${NODE}"===
+  cat /tmp/\${NODE}.log
 done
 EOF
 

@@ -1,3 +1,5 @@
+#! /bin/bash
+
 DTENSOR_JOBS_FILE=`dirname $0`/dtensor-jobs
 
 if ! [[ -f "${DTENSOR_JOBS_FILE}" ]]; then

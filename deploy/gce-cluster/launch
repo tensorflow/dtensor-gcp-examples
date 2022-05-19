@@ -1,0 +1,30 @@
+#! /usr/bin/python
+
+import os
+import socket
+import subprocess
+import sys
+
+hostname = socket.gethostname()
+filename = os.environ.get('DTENSOR_JOBS_FILE', 'dtensor-jobs')
+dtensor_jobs = open(filename, 'r').read().strip().split('\n')
+os.environ['DTENSOR_JOBS'] = ','.join(dtensor_jobs)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['DTENSOR_JOB_NAME'] = 'worker'
+os.environ['DTENSOR_NUM_CLIENTS'] = str(len(dtensor_jobs))
+
+processes = []
+for i, job in enumerate(dtensor_jobs):
+  host, port = job.split(":")
+  if host == hostname:
+    os.environ['DTENSOR_CLIENT_ID'] = str(i)
+    processes.append(subprocess.Popen(list(sys.argv[1:])))
+
+code = 0
+for process in processes:
+  process.wait()
+  if process.returncode != 0:
+    code = process.returncode
+
+sys.exit(code)
+

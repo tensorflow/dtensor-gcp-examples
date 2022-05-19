@@ -33,12 +33,12 @@ while bash cluster-run.sh ls |grep 'exited with return code'; do
   sleep 10
 done
 
-bash cluster-bcast.sh launch.sh ./
+bash cluster-bcast.sh launch ./
 bash cluster-run.sh "if ! [[ -d dtensor-gpu-gcp ]]; then git clone https://github.com/rainwoodman/dtensor-gpu-gcp; fi"
 bash cluster-run.sh "cd dtensor-gpu-gcp; git pull"
 bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
 
 echo "Next, run the clients with,"
-echo '  bash cluster-run.sh "bash launch.sh python dtensor-gpu-gcp/dtensor-client.py"'
+echo '  bash cluster-run.sh "./launch python dtensor-gpu-gcp/dtensor-client.py"'
 echo "When done, delete the cluster with,"
 echo '  bash cluster-delete.sh '

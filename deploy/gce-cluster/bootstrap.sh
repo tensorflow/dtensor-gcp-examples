@@ -23,7 +23,7 @@ done
 
 bash `dirname $0`/../make-cluster-commands.sh "${ZONE}" "${INSTANCES[@]}"
 
-gcloud compute instances bulk create --name-pattern="${NAME_PREFIX}-###" \
+gcloud compute instances bulk create --predefined-names=$(printf "%s," ${INSTANCES[@]} | sed 's/,$//') \
      --zone=$ZONE    \
      --image-family=$IMAGE_FAMILY     \
      --image-project=deeplearning-platform-release   \
@@ -45,15 +45,14 @@ for i in ${INSTANCES[@]}; do
   echo "${i}:${PORT}"
 done > dtensor-jobs
 
-bash cluster-bcast.sh dtensor-jobs ./dtensor-jobs
-bash cluster-bcast.sh launch.sh ./
-bash cluster-bcast.sh get-clients.py ./
+bash cluster-bcast.sh dtensor-jobs ./
+bash cluster-bcast.sh launch ./
 
 bash cluster-run.sh "if ! [[ -d dtensor-gpu-gcp ]]; then git clone https://github.com/rainwoodman/dtensor-gpu-gcp; fi"
 bash cluster-run.sh "cd dtensor-gpu-gcp; git pull"
 bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
 
 echo "Next, run the clients with,"
-echo '  bash cluster-run.sh "bash launch.sh python dtensor-gpu-gcp/dtensor-client.py"'
+echo '  bash cluster-run.sh "./launch python dtensor-gpu-gcp/dtensor-client.py"'
 echo "When done, delete the cluster with,"
 echo '  bash cluster-delete.sh '
