@@ -7,7 +7,7 @@
 #
 # The git repo is cloned to the VMs.
 
-export IMAGE_FAMILY=tf-ent-2-9-cu113
+export IMAGE_FAMILY=common-cu113
 export ZONE=us-west1-b
 export INSTANCE_TYPE="n1-standard-8"
 export COUNT=4
@@ -45,6 +45,10 @@ for i in ${INSTANCES[@]}; do
   echo "${i}:${PORT}"
 done > dtensor-jobs
 
+bash cluster-run.sh "sudo /opt/conda/bin/conda clean -q -y --all"
+bash cluster-run.sh "conda create -q -y -n py310 python=3.10"
+bash cluster-run.sh "conda activate py310; pip install -q tf-nightly"
+
 bash cluster-bcast.sh dtensor-jobs ./
 bash cluster-bcast.sh launch ./
 
@@ -55,7 +59,7 @@ bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
 cat <<EOF
 Next, run the application with,
 
-  bash cluster-run.sh "./launch python dtensor-gpu-gcp/dtensor-app-naive.py"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-app-naive.py"
 
 When done, delete the cluster with,
 
