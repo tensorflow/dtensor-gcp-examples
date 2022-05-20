@@ -28,7 +28,7 @@ gcloud compute instances bulk create --predefined-names=$(printf "%s," ${INSTANC
      --image-family=$IMAGE_FAMILY     \
      --image-project=deeplearning-platform-release   \
      --on-host-maintenance=TERMINATE   \
-     --accelerator="type=nvidia-tesla-t4,count=1"    \
+     --accelerator="type=nvidia-tesla-t4,count=2"    \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
      --metadata="install-nvidia-driver=True"  \

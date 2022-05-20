@@ -2,10 +2,10 @@
 
 export TF_CPP_MIN_LOG_LEVEL=3
 export DTENSOR_JOB_NAME=worker
-export DTENSOR_JOBS=localhost:9890,localhost:9891,localhost:9892,localhost:9893
-export DTENSOR_NUM_CLIENTS=4
+export DTENSOR_JOBS=localhost:9890,localhost:9891,localhost:9892,localhost:9893:localhost:9894,localhost:9895,localhost:9896,localhost:9897
+export DTENSOR_NUM_CLIENTS=8
 
-for i in 0 1 2 3; do
+for i in 0 1 2 3 4 5 6 7; do
 (
 export CUDA_VISIBLE_DEVICES=${i}
 export DTENSOR_CLIENT_ID=${i}

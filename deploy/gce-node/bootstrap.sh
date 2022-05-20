@@ -12,7 +12,7 @@ export ZONE=us-west1-b
 export INSTANCE_TYPE="n1-standard-8"
 export NAME="dtensor-singlenode"
 export PORT=9898
-export NUM_GPUS=4
+export NUM_GPUS=8
 
 INSTANCES=($NAME)
 
@@ -23,7 +23,7 @@ gcloud compute instances create $NAME \
      --image-family=$IMAGE_FAMILY     \
      --image-project=deeplearning-platform-release   \
      --maintenance-policy=TERMINATE   \
-     --accelerator="type=nvidia-tesla-t4,count=${NUM_GPUS}"    \
+     --accelerator="type=nvidia-tesla-v100,count=${NUM_GPUS}"    \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
      --metadata="install-nvidia-driver=True"  \
