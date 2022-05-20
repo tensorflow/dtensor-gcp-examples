@@ -31,10 +31,10 @@ gcloud compute instances bulk create --predefined-names=$(printf "%s," ${INSTANC
      --accelerator="type=nvidia-tesla-t4,count=2"    \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
+     --scopes=default,storage-rw \
      --metadata="install-nvidia-driver=True"  \
      --count=4 \
-     --tags=${TAGS} \
-     --metadata-from-file=startup-script=/tmp/bootstrap-dtensor-jobs.sh
+     --tags=${TAGS}
 
 while bash cluster-run.sh ls |grep 'exited with return code'; do
   echo Health checking
