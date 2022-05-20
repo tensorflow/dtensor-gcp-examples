@@ -3,6 +3,24 @@
 This project contains an example of using multi-client DTensor on GCP with a
 cluster of GPUs.
 
+## Prerequirement
+
+1. gcloud environment on the local console:
+  ```
+  gcloud auth login ...
+  gcloud config set project  ...
+  ```
+
+2. A GCS bucket that the GCE service account can write into. The bucket is used
+  to demo checkpointing. Set the prefix paths name with
+  ```
+  export GCS_BUCKET=<bucket_name>
+  ```
+  or edit bootstrap.sh.
+
+
+## Description
+
 - deploy/gce-cluster: First build a cluster of 4 GCE GPU VMs, then run 1 dtensor
   client per VM.
 
@@ -35,6 +53,8 @@ In each `deploy/*` directory:
   in the cluster.
 
 ## Running as multi-client
+
+
 To run the application with multiple clients, e.g using the GCE cluster example:
 
 ```
