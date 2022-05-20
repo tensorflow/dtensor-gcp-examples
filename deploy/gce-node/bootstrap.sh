@@ -26,6 +26,7 @@ gcloud compute instances create $NAME \
      --accelerator="type=nvidia-tesla-v100,count=${NUM_GPUS}"    \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
+     --scopes=default,storage-rw \
      --metadata="install-nvidia-driver=True"  \
 
 while bash cluster-run.sh ls |grep 'exited with return code'; do
