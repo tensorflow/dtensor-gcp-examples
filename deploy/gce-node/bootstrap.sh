@@ -7,6 +7,7 @@
 #
 # The git repo is cloned to the VMs.
 
+export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
 export IMAGE_FAMILY=common-cu113
 export ZONE=us-west1-b
 export INSTANCE_TYPE="n1-standard-8"
@@ -45,11 +46,11 @@ bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
 cat <<EOF
 Next, run the application with 4 clients:
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-app-naive.py"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
 
 As there only 1 node, you can also run the application with a single client.
 
-  bash cluster-run.sh "conda activate py310; python dtensor-gpu-gcp/dtensor-app-naive.py"
+  bash cluster-run.sh "conda activate py310; python dtensor-gpu-gcp/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
 
 When done, delete the cluster with,
 

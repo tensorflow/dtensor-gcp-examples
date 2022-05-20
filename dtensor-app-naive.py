@@ -4,6 +4,8 @@ It performs a global reduce sum on a mesh of 4 devices. The 4 devices can
 be on the same client or on different clients.
 """
 import argparse
+import os
+
 import tensorflow as tf
 from tensorflow.experimental import dtensor
 
@@ -40,6 +42,6 @@ def main():
   # Checkpointing
   v = dtensor.DVariable(data)
   cpt = dtensor.DTensorCheckpoint(mesh=mesh, v=v)
-  cpt.save(os.path.join(args.prefix, 'checkpoint-1')
+  cpt.save(os.path.join(args.prefix, 'checkpoint-1'))
 
 main()
