@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow.experimental import dtensor
 
 ap = argparse.ArgumentParser()
-ap.add_argument("prefix", default="gs://dtensor-checkpoints", help="prefix for checkpointing")
+ap.add_argument("--prefix", default="gs://dtensor-checkpoints", help="prefix for checkpointing")
 
 print('client', dtensor.client_id(), 'devices', tf.config.list_physical_devices('GPU'))
 print(tf.__version__)
