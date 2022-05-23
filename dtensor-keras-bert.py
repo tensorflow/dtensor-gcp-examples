@@ -124,18 +124,12 @@ def get_model(mesh):
 
   return bert_classifier
 
-# Needed for Dtensor for stateless ops and same seed across the clients.
-tf.keras.utils.set_random_seed(1337)
-tf.keras.backend.experimental.enable_tf_random_generator()
-
-print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
-
-
 def main():
   args = ap.parse_args()
 
   print('tensorflow version', tf.__version__)
   # Initializes multi-client dtensor.
+
   configure_virtual_cpus(8)
   dtensor.initialize_multi_client()
 
@@ -144,6 +138,12 @@ def main():
 
   # Creates the DTensor device mesh.
   mesh = dtensor.create_distributed_mesh(mesh_dims, device_type=args.device_type, num_global_devices=8)
+
+  # Needed for Dtensor for stateless ops and same seed across the clients.
+  tf.keras.utils.set_random_seed(1337)
+  tf.keras.backend.experimental.enable_tf_random_generator()
+
+  print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
 
   # Data, model, and optimizer.
   dataset = get_dataset(mesh)
