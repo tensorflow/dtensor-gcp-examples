@@ -131,7 +131,7 @@ def main():
 
   print('tensorflow version', tf.__version__)
   print('client', dtensor.client_id(), 'device type', args.device_type,
-        'num local devices', dtensor.num_local_devices(arg.device_type))
+        'num local devices', dtensor.num_local_devices(args.device_type))
 
   # Initializes multi-client dtensor.
   configure_virtual_cpus(8)
