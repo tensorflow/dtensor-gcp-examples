@@ -74,7 +74,7 @@ def train_model(model, optimizer, mesh, dataset, pack_fn, steps_per_epoch=10, nu
       word_id_data, mask_data, type_id_data, labels = next(iterator)
       d_word_id_data = pack_fn(word_id_data)
       d_mask_data = pack_fn(mask_data)
-      d_type_id_data = shard_data_nf(type_id_data)
+      d_type_id_data = pack_fn(type_id_data)
       d_labels = pack_fn(labels)
       total_loss += train_step(model, [d_word_id_data, d_mask_data, d_type_id_data], d_labels, loss_obj, optimizer)
 
