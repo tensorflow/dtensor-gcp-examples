@@ -155,7 +155,7 @@ def main():
   cpt = dtensor.DTensorCheckpoint(mesh=mesh, root=model)
   cpt.save(os.path.join(args.prefix, 'bert-checkpoint-1/cpt'))
 
-  cpt.restore('bert-checkpoint-1/cpt')
+  cpt.restore(os.path.join(args.prefix, 'bert-checkpoint-1/cpt'))
 
 def configure_virtual_cpus(ncpu):
   """Configures number of virtual CPUs for TensorFlow."""
