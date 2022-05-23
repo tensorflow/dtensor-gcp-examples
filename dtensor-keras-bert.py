@@ -145,6 +145,8 @@ def main():
   tf.keras.utils.set_random_seed(1337)
   tf.keras.backend.experimental.enable_tf_random_generator()
 
+  print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
+
   # Data, model, and optimizer.
   dataset = get_dataset(mesh)
   model = get_model(mesh)
