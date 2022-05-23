@@ -51,7 +51,9 @@ done
 
 bash cluster-run.sh "sudo /opt/conda/bin/conda clean -q -y --all"
 bash cluster-run.sh "conda create -q -y -n py310 python=3.10"
-bash cluster-run.sh "conda activate py310; pip install -q tf-nightly"
+bash cluster-run.sh "conda activate py310; pip install -q tf-nightly tf-models-nightly"
+# Upgrade to a tf-model-nightly version with our fixes.
+bash cluster-run.sh "conda activate py310; pip install -q --no-deps --force tf-model-nightly==2.9.0.dev20220523 opencv-python-headless==4.5.4.60"
 bash cluster-bcast.sh launch ./
 bash cluster-run.sh "if ! [[ -d dtensor-gpu-gcp ]]; then git clone https://github.com/rainwoodman/dtensor-gpu-gcp; fi"
 bash cluster-run.sh "cd dtensor-gpu-gcp; git pull"
