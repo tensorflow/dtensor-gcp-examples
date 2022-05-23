@@ -151,19 +151,11 @@ def main():
   train_model(model, optimizer, mesh, dataset, pack_fn)
 
 
-  """
-  v = dtensor.DVariable(data)
-  cpt = dtensor.DTensorCheckpoint(mesh=mesh, v=v)
-  cpt.save(os.path.join(args.prefix, 'checkpoint-1'))
+  # Save a check point
+  cpt = dtensor.DTensorCheckpoint(mesh=mesh, root=model)
+  cpt.save(os.path.join(args.prefix, 'bert-checkpoint-1/cpt'))
 
-  logits = bert_classifier([d_word_id_data, d_mask_data, d_type_id_data])
-  print(logits)
-
-  loss = tf.keras.losses.sparse_categorical_crossentropy(
-    d_labels, logits, from_logits=True)
-  print(loss)
-  """
-
+  cpt.restore('bert-checkpoint-1/cpt')
 
 def configure_virtual_cpus(ncpu):
   """Configures number of virtual CPUs for TensorFlow."""
