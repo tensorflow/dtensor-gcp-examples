@@ -147,12 +147,13 @@ def main():
 
   # Data, model, and optimizer.
   dataset = get_dataset(mesh)
+
   model = get_model(mesh)
 
   optimizer = tf.keras.dtensor.experimental.optimizers.Adam(learning_rate=0.001, mesh=mesh)
 
   # Train the model
-  train_model(bert_classifier, optimizer, mesh, dataset)
+  train_model(model, optimizer, mesh, dataset)
 
 
   """
