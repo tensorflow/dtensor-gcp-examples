@@ -1,6 +1,7 @@
 """bert model with dtensor. """
 
 import argparse
+import numpy as np
 import os
 
 import tensorflow as tf
@@ -8,8 +9,6 @@ import tensorflow as tf
 from tensorflow.experimental import dtensor
 import tensorflow_models as tfm
 from tensorflow_models import nlp
-
-import numpy as np
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--prefix", default="gs://dtensor-checkpoints", help="prefix for checkpointing")
@@ -43,15 +42,13 @@ def get_dataset(mesh):
   dataset = tf.data.Dataset.from_tensor_slices((word_id_data, mask_data, type_id_data, labels)).repeat().batch(batch_size)
 
   # Convert the input into dtensor
-  replicated_2d_layout = dtensor.Layout.replicated(mesh, 2)
-  d_word_id_data = dtensor.copy_to_mesh(word_id_data, replicated_2d_layout)
-  d_mask_data = dtensor.copy_to_mesh(mask_data, replicated_2d_layout)
-  d_type_id_data = dtensor.copy_to_mesh(type_id_data, replicated_2d_layout)
-
-  replicated_1d_layout = dtensor.Layout.replicated(mesh, 1)
-  d_labels = dtensor.copy_to_mesh(labels, replicated_1d_layout)
-
   # print(network.get_layer('word_embeddings').embeddings)
+  def shard_data(data, mesh=mesh):
+    # We are replicating all the data to each device. This can be changed to
+    # batch sharding if we would like to
+    return dtensor.copy_to_mesh(data, dtensor.Layout.replicated(mesh, rank=len(data.shape)))
+
+  return dataset, shard_data
 
 
 @tf.function
@@ -65,7 +62,7 @@ def train_step(model, feature, label, loss_obj, optimizer):
   optimizer.apply_gradients(zip(gradients, model.trainable_variables))
   return loss
 
-def train_model(model, optimizer, mesh, dataset, steps_per_epoch=10, num_epochs=3):
+def train_model(model, optimizer, mesh, dataset, pack_fn, steps_per_epoch=10, num_epochs=3):
 
   loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
@@ -75,12 +72,10 @@ def train_model(model, optimizer, mesh, dataset, steps_per_epoch=10, num_epochs=
     total_loss = 0.00
     for _ in range(steps_per_epoch):
       word_id_data, mask_data, type_id_data, labels = next(iterator)
-      # We are replicating all the data to each device. This can be changed to
-      # batch sharding if we would like to
-      d_word_id_data = dtensor.copy_to_mesh(word_id_data, replicated_2d_layout)
-      d_mask_data = dtensor.copy_to_mesh(mask_data, replicated_2d_layout)
-      d_type_id_data = dtensor.copy_to_mesh(type_id_data, replicated_2d_layout)
-      d_labels = dtensor.copy_to_mesh(labels, replicated_1d_layout)
+      d_word_id_data = pack_fn(word_id_data)
+      d_mask_data = pack_fn(mask_data)
+      d_type_id_data = shard_data_nf(type_id_data)
+      d_labels = pack_fn(labels)
       total_loss += train_step(model, [d_word_id_data, d_mask_data, d_type_id_data], d_labels, loss_obj, optimizer)
 
     train_loss = tf.reduce_mean(total_loss / steps_per_epoch)
@@ -146,14 +141,14 @@ def main():
   print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
 
   # Data, model, and optimizer.
-  dataset = get_dataset(mesh)
+  dataset, pack_fn = get_dataset(mesh)
 
   model = get_model(mesh)
 
   optimizer = tf.keras.dtensor.experimental.optimizers.Adam(learning_rate=0.001, mesh=mesh)
 
   # Train the model
-  train_model(model, optimizer, mesh, dataset)
+  train_model(model, optimizer, mesh, dataset, pack_fn)
 
 
   """
