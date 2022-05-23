@@ -130,12 +130,12 @@ def main():
   args = ap.parse_args()
 
   print('tensorflow version', tf.__version__)
-  print('client', dtensor.client_id(), 'device type', args.device_type,
-        'num local devices', dtensor.num_local_devices(args.device_type))
-
   # Initializes multi-client dtensor.
   configure_virtual_cpus(8)
   dtensor.initialize_multi_client()
+
+  print('client', dtensor.client_id(), 'device type', args.device_type,
+        'num local devices', dtensor.num_local_devices(args.device_type))
 
   # Creates the DTensor device mesh.
   mesh = dtensor.create_distributed_mesh(mesh_dims, device_type=args.device_type, num_global_devices=8)
