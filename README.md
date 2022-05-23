@@ -21,10 +21,10 @@ cluster of GPUs.
 
 ## Description
 
-- deploy/gce-cluster: First build a cluster of 4 GCE GPU VMs, then run 1 dtensor
+- deploy/gce-cluster: First build a cluster of 4 GCE 2GPU VMs, then run 1 dtensor
   client per VM.
 
-- deploy/gce-node: First build a single GCE GPU VM with 4 gpus, then run 1 client
+- deploy/gce-node: First build a single GCE GPU VM with 8 gpus, then run 1 client
   per GPU on the VM. For each dtensor client, the unwanted GPUs are hidden via
   `CUDA_VISIBILE_GPU`.
 
@@ -66,7 +66,7 @@ $ cd dtensor-gpu-gcp
 # Run from the cluster deployment:
 $ cd deploy/gce-cluster
 $ bash bootstrap.sh
-$ bash cluster-run.sh "./launch python dtensor-gpu-gcp/dtensor-app-naive.py"
+$ bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-app-naive.py"
 $ bash cluster-delete.sh
 ```
 
@@ -77,6 +77,6 @@ Just skip `./launch` and run the script as a regular python application:
 ```
 $ cd deploy/gce-node
 $ bash bootstrap.sh
-$ bash cluster-run.sh "export TF_CPP_MIN_LOG_LEVEL=3 python dtensor-gpu-gcp/dtensor-app-naive.py"
+$ bash cluster-run.sh "conda activate py310; export TF_CPP_MIN_LOG_LEVEL=3 python dtensor-gpu-gcp/dtensor-app-naive.py"
 $ bash cluster-delete.sh
 ```
