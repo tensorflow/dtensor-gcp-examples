@@ -134,6 +134,11 @@ def main():
   configure_virtual_cpus(8)
   dtensor.initialize_multi_client()
 
+  # Needed for Dtensor for stateless ops and same seed across the clients.
+  tf.keras.utils.set_random_seed(1337)
+  tf.keras.backend.experimental.enable_tf_random_generator()
+
+  print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
   print('client', dtensor.client_id(), 'device type', args.device_type,
         'num local devices', dtensor.num_local_devices(args.device_type))
 
