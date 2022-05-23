@@ -122,9 +122,14 @@ def get_model(mesh):
   for weight in bert_classifier.trainable_weights:
     print(f"{weight.name} has layout spec: {weight.layout.sharding_specs}")
 
-
-
   return bert_classifier
+
+# Needed for Dtensor for stateless ops and same seed across the clients.
+tf.keras.utils.set_random_seed(1337)
+tf.keras.backend.experimental.enable_tf_random_generator()
+
+print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
+
 
 def main():
   args = ap.parse_args()
@@ -134,27 +139,17 @@ def main():
   configure_virtual_cpus(8)
   dtensor.initialize_multi_client()
 
-  print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
   print('client', dtensor.client_id(), 'device type', args.device_type,
         'num local devices', dtensor.num_local_devices(args.device_type))
 
   # Creates the DTensor device mesh.
   mesh = dtensor.create_distributed_mesh(mesh_dims, device_type=args.device_type, num_global_devices=8)
 
-  # Needed for Dtensor for stateless ops and same seed across the clients.
-  tf.keras.utils.set_random_seed(1337)
-  tf.keras.backend.experimental.enable_tf_random_generator()
-
-  print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
-
   # Data, model, and optimizer.
   dataset = get_dataset(mesh)
   model = get_model(mesh)
 
   optimizer = tf.keras.dtensor.experimental.optimizers.Adam(learning_rate=0.001, mesh=mesh)
-
-  # FIXME: What are the pros and cons of doing this?
-  # optimizer.build(model.trainable_variables)
 
   # Train the model
   train_model(bert_classifier, optimizer, mesh, dataset)
