@@ -24,7 +24,7 @@
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
 export IMAGE_FAMILY=common-cu113
 export ZONE=us-west1-b
-export INSTANCE_TYPE="n1-standard-8"
+export INSTANCE_TYPE="n1-standard-16"
 export NAME="dtensor-singlenode"
 export PORT=9898
 export NUM_GPUS=8
