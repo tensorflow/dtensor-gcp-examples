@@ -47,22 +47,25 @@ batch_size = 32
 sequence_length = 10
 
 def get_dataset(mesh):
+  np.random.seed(dtensor.client_id() + 100)
   word_id_data = np.random.randint(vocab_size, size=(batch_size, sequence_length))
   mask_data = np.random.randint(num_classes, size=(batch_size, sequence_length))
   type_id_data = np.random.randint(num_classes, size=(batch_size, sequence_length))
   labels = np.random.randint(num_classes, size=(batch_size))
 
   # Create dummy dataset
-  dataset = tf.data.Dataset.from_tensor_slices((word_id_data, mask_data, type_id_data, labels)).repeat().batch(batch_size)
+  client_local_dataset = tf.data.Dataset.from_tensor_slices((word_id_data, mask_data, type_id_data, labels)).repeat()
 
-  # Convert the input into dtensor
-  # print(network.get_layer('word_embeddings').embeddings)
-  def shard_data(data, mesh=mesh):
-    # We are replicating all the data to each device. This can be changed to
-    # batch sharding if we would like to
-    return dtensor.copy_to_mesh(data, dtensor.Layout.replicated(mesh, rank=len(data.shape)))
+  client_local_batch_size = batch_size // dtensor.num_clients()
+  client_local_dataset = client_local_dataset.batch(client_local_batch_size)
 
-  return dataset, shard_data
+  # Pack the input into dtensor
+  def shard_data(client_local_data, mesh=mesh):
+    layout = dtensor.Layout.batch_sharded(mesh, BATCH_DIM, rank=len(client_local_data.shape))
+    components = tf.split(client_local_data, mesh.num_local_devices())
+    return dtensor.pack(components, layout=layout)
+
+  return client_local_dataset, shard_data
 
 
 @tf.function
@@ -78,6 +81,7 @@ def train_step(model, feature, label, loss_obj, optimizer):
 
 def train_model(model, optimizer, mesh, dataset, pack_fn, steps_per_epoch=10, num_epochs=3):
 
+  print("Training started...")
   loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
   iterator = iter(dataset)
@@ -164,12 +168,13 @@ def main():
   # Train the model
   train_model(model, optimizer, mesh, dataset, pack_fn)
 
-
   # Save a check point
   cpt = dtensor.DTensorCheckpoint(mesh=mesh, root=model)
   saved_path = cpt.save(os.path.join(args.prefix, 'bert-checkpoint-1/cpt'))
 
-  cpt.restore(saved_path)
+  # FIXME(qlzh727): Some 'unused' keras lazy variables leaked through causing
+  # problems during restore.
+  # cpt.restore(saved_path)
 
 def configure_virtual_cpus(ncpu):
   """Configures number of virtual CPUs for TensorFlow."""
