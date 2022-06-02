@@ -27,11 +27,8 @@ ap.add_argument(
     '--prefix',
     default='gs://dtensor-checkpoints',
     help='prefix for checkpointing')
-
-print('client', dtensor.client_id(), 'devices',
-      tf.config.list_physical_devices('GPU'))
-print(tf.__version__)
-
+ap.add_argument(
+    "--device-type", default="GPU", choices=["GPU", "CPU"], help="device type")
 
 def configure_virtual_cpus(ncpu):
   phy_devices = tf.config.list_physical_devices('CPU')
@@ -40,19 +37,23 @@ def configure_virtual_cpus(ncpu):
   ] * ncpu)
 
 
-# Checkpointing requires the same number (or more) of logical CPU devices
-# as the number of GPU devices.
-configure_virtual_cpus(8)
-
-dtensor.initialize_multi_client()
-
-mesh = dtensor.create_distributed_mesh([('batch', 8)],
-                                       device_type='GPU',
-                                       num_global_devices=8)
-
-
 def main():
   args = ap.parse_args()
+
+  print(tf.__version__)
+
+  # Checkpointing requires the same number (or more) of logical CPU devices
+  # as the number of GPU devices.
+  configure_virtual_cpus(8 // dtensor.num_clients())
+  dtensor.initialize_multi_client()
+
+  print("device type", args.device_type, "num local devices",
+           dtensor.num_local_devices(args.device_type))
+
+  mesh = dtensor.create_distributed_mesh([('batch', 8)],
+                                       device_type=args.device_type,
+                                       num_global_devices=8)
+
 
   layout = dtensor.Layout(['batch', dtensor.UNSHARDED], mesh)
   data = dtensor.call_with_layout(tf.ones, layout, shape=(16, 100))

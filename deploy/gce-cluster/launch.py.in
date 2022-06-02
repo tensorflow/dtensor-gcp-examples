@@ -5,9 +5,11 @@ import socket
 import subprocess
 import sys
 
+dtensor_jobs = """
+@DTENSOR_JOBS_LIST@
+""".strip().split('\n')
 hostname = socket.gethostname()
-filename = os.environ.get('DTENSOR_JOBS_FILE', 'dtensor-jobs')
-dtensor_jobs = open(filename, 'r').read().strip().split('\n')
+
 os.environ['DTENSOR_JOBS'] = ','.join(dtensor_jobs)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['DTENSOR_JOB_NAME'] = 'worker'

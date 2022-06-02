@@ -224,7 +224,7 @@ def main():
   print("tensorflow version", tf.__version__)
 
   # Initializes multi-client dtensor.
-  configure_virtual_cpus(8)
+  configure_virtual_cpus(8 // dtensor.num_clients())
   dtensor.initialize_multi_client()
 
   dprint("device type", args.device_type, "num local devices",

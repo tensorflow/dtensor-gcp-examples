@@ -37,7 +37,7 @@ In each `deploy/*` directory:
 
 - bootstrap.sh: Starts the cluster / node.
 
-- launch.sh: The application launcher for this cluster. It configures the
+- launch: The application launcher for this cluster. It configures the
   DTensor environment variables before launching the command provided in
   the command-line as dtensor clients.
   This script (and dependency) are broadcast to the VMs and shall be run from

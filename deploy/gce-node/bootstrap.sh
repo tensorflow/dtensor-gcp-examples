@@ -27,22 +27,32 @@ export ZONE=us-west1-b
 export INSTANCE_TYPE="n1-standard-16"
 export NAME="dtensor-singlenode"
 export PORT=9898
-export NUM_GPUS=8
+
+case "${DEVICE_TYPE}" in
+  "cpu")
+  export ACCELERATOR=""
+  ;;
+  * )
+  export ACCELERATOR="type=nvidia-tesla-v100,count=8"
+  ;;
+esac
 
 INSTANCES=($NAME)
 
 bash `dirname $0`/../make-cluster-commands.sh "${ZONE}" "${INSTANCES[@]}"
 
+set -x
 gcloud compute instances create $NAME \
      --zone=$ZONE    \
      --image-family=$IMAGE_FAMILY     \
      --image-project=deeplearning-platform-release   \
      --maintenance-policy=TERMINATE   \
-     --accelerator="type=nvidia-tesla-v100,count=${NUM_GPUS}"    \
+     --accelerator="$ACCELERATOR"    \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
      --scopes=default,storage-rw \
      --metadata="install-nvidia-driver=True"  \
+set +x
 
 while bash cluster-run.sh ls |grep 'exited with return code'; do
   echo Health checking
