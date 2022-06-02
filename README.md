@@ -35,7 +35,8 @@ cluster of GPUs.
 
 In each `deploy/*` directory:
 
-- bootstrap.sh: Starts the cluster / node.
+- bootstrap.sh: Starts the cluster / node. Adding 'cpu'
+  (running bootstrap.sh cpu) will start a CPU only cluster without GPUs.
 
 - launch: The application launcher for this cluster. It configures the
   DTensor environment variables before launching the command provided in
