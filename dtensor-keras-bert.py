@@ -234,7 +234,8 @@ def main():
   mesh = dtensor.create_distributed_mesh(
       mesh_dims, device_type=args.device_type, num_global_devices=8)
 
-  # Needed for Dtensor for stateless ops and same seed across the clients.
+  # Ensure model replicas are initialized identically by using an identical
+  # Keras RNG seed across the clients.
   tf.keras.utils.set_random_seed(1337)
   tf.keras.backend.experimental.enable_tf_random_generator()
 
