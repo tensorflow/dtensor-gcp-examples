@@ -51,7 +51,7 @@ gcloud compute instances create $NAME \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
      --scopes=default,storage-rw \
-     --metadata="install-nvidia-driver=True"  \
+     --metadata="install-nvidia-driver=True"
 set +x
 
 while bash cluster-run.sh ls |grep 'exited with return code'; do
