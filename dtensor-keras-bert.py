@@ -46,27 +46,73 @@ vocab_size = 100	# small vocab size, just for demo
 batch_size = 32
 sequence_length = 10
 
+# Util functions
+def dprint(*args):
+  """Print from all clients."""
+  prefix = f'[Client: {dtensor.client_id():03d}] '
+  lines = ' '.join([str(a) for a in args]).split('\n')
+  msg = '\n'.join([(prefix + line) for line in lines])
+  print(msg)
+
+def rprint(*args):
+  """Print from leader client."""
+  if dtensor.client_id() == 0:
+    dprint(*args)
+
+def configure_virtual_cpus(ncpu):
+  """Configures number of virtual CPUs for TensorFlow."""
+  phy_devices = tf.config.list_physical_devices('CPU')
+  tf.config.set_logical_device_configuration(phy_devices[0], [
+      tf.config.LogicalDeviceConfiguration(),
+  ] * ncpu)
+
+
+# ML starts here
 def get_dataset(mesh):
-  np.random.seed(dtensor.client_id() + 100)
+
+  def get_pipeline_params(mesh=mesh):
+    # pipeline_id determines the unique set of training data set.
+    # We use the first batch dim device as the ID of the input
+    # pipeline. This ensures all model shards in the same batch 'slab' of the
+    # mesh receive the same data.
+    # local_batch_dim_size is the number of unique batch dim locations of local
+    # devices. It determines the number of batches fetched by this client.
+    locs = set()
+    for entry in mesh.local_device_locations():
+      locs.add(entry[BATCH_DIM])
+    return dict(pipeline_id=min(locs), local_batch_dim_size=len(locs))
+
+  pipeline_params = get_pipeline_params(mesh)
+
+  dprint('Pipeline Params', pipeline_params)
+  np.random.seed(pipeline_params['pipeline_id'])
+
   word_id_data = np.random.randint(vocab_size, size=(batch_size, sequence_length))
   mask_data = np.random.randint(num_classes, size=(batch_size, sequence_length))
   type_id_data = np.random.randint(num_classes, size=(batch_size, sequence_length))
   labels = np.random.randint(num_classes, size=(batch_size))
 
   # Create dummy dataset
+  client_local_batch_size = batch_size // mesh.dim_size(BATCH_DIM) * pipeline_params['local_batch_dim_size']
   client_local_dataset = tf.data.Dataset.from_tensor_slices((word_id_data, mask_data, type_id_data, labels)).repeat()
-
-  client_local_batch_size = batch_size // dtensor.num_clients()
   client_local_dataset = client_local_dataset.batch(client_local_batch_size)
 
   # Pack the input into dtensor
-  def shard_data(client_local_data, mesh=mesh):
-    layout = dtensor.Layout.batch_sharded(mesh, BATCH_DIM, rank=len(client_local_data.shape))
-    components = tf.split(client_local_data, mesh.num_local_devices())
-    return dtensor.pack(components, layout=layout)
+  def shard_data(tensor, mesh=mesh):
+    # We evenly split the tensor 
+    loc = set()
+    for entry in mesh.local_device_locations():
+      loc.add(entry['batch'])
+    map = {device_loc : tensor_loc for tensor_loc, device_loc in enumerate(sorted(loc))}
+
+    layout = dtensor.Layout.batch_sharded(mesh, BATCH_DIM, rank=len(tensor.shape))
+    tensors = tf.split(tensor, len(loc), axis=0)
+    components = []
+    for entry in mesh.local_device_locations():
+      components.append(tensors[map[entry['batch']]])
+    return dtensor.pack(components, layout)
 
   return client_local_dataset, shard_data
-
 
 @tf.function
 def train_step(model, feature, label, loss_obj, optimizer):
@@ -81,7 +127,7 @@ def train_step(model, feature, label, loss_obj, optimizer):
 
 def train_model(model, optimizer, mesh, dataset, pack_fn, steps_per_epoch=10, num_epochs=3):
 
-  print("Training started...")
+  rprint("Training started...")
   loss_obj = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
   iterator = iter(dataset)
@@ -94,11 +140,12 @@ def train_model(model, optimizer, mesh, dataset, pack_fn, steps_per_epoch=10, nu
       d_mask_data = pack_fn(mask_data)
       d_type_id_data = pack_fn(type_id_data)
       d_labels = pack_fn(labels)
+      assert d_labels.shape[0] == batch_size
       total_loss += train_step(model, [d_word_id_data, d_mask_data, d_type_id_data], d_labels, loss_obj, optimizer)
 
     train_loss = tf.reduce_mean(total_loss / steps_per_epoch)
 
-    print(f'Epoch {epoch}: Loss: {train_loss}')
+    rprint(f'Epoch {epoch}: Loss: {train_loss}')
     train_losses.append(train_loss)
   return train_losses
 
@@ -133,7 +180,7 @@ def get_model(mesh):
         network, num_classes=num_classes)
 
   for weight in bert_classifier.trainable_weights:
-    print(f"{weight.name} has layout spec: {weight.layout.sharding_specs}")
+    rprint(f"{weight.name} has layout spec: {weight.layout.sharding_specs}")
 
   return bert_classifier
 
@@ -141,13 +188,13 @@ def main():
   args = ap.parse_args()
 
   print('tensorflow version', tf.__version__)
-  # Initializes multi-client dtensor.
 
+  # Initializes multi-client dtensor.
   configure_virtual_cpus(8)
   dtensor.initialize_multi_client()
 
-  print('client', dtensor.client_id(), 'device type', args.device_type,
-        'num local devices', dtensor.num_local_devices(args.device_type))
+  dprint('device type', args.device_type,
+         'num local devices', dtensor.num_local_devices(args.device_type))
 
   # Creates the DTensor device mesh.
   mesh = dtensor.create_distributed_mesh(mesh_dims, device_type=args.device_type, num_global_devices=8)
@@ -155,8 +202,6 @@ def main():
   # Needed for Dtensor for stateless ops and same seed across the clients.
   tf.keras.utils.set_random_seed(1337)
   tf.keras.backend.experimental.enable_tf_random_generator()
-
-  print(tf.keras.backend.experimental.is_tf_random_generator_enabled())
 
   # Data, model, and optimizer.
   dataset, pack_fn = get_dataset(mesh)
@@ -175,14 +220,6 @@ def main():
   # FIXME(qlzh727): Some 'unused' keras lazy variables leaked through causing
   # problems during restore.
   # cpt.restore(saved_path)
-
-def configure_virtual_cpus(ncpu):
-  """Configures number of virtual CPUs for TensorFlow."""
-  phy_devices = tf.config.list_physical_devices('CPU')
-  tf.config.set_logical_device_configuration(phy_devices[0], [
-      tf.config.LogicalDeviceConfiguration(),
-  ] * ncpu)
-
 
 
 if __name__ == '__main__':
