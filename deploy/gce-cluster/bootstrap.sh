@@ -62,11 +62,12 @@ done > dtensor-jobs
 
 bash cluster-run.sh "sudo /opt/conda/bin/conda clean -q -y --all"
 bash cluster-run.sh "conda create -q -y -n py310 python=3.10"
-bash cluster-run.sh "conda activate py310; pip install -q tf-nightly"
+bash cluster-run.sh "conda activate py310; pip install -q tf-nightly tf-models-nightly"
+# Upgrade to a tf-models-nightly version with our fixes.
+bash cluster-run.sh "conda activate py310; pip install -q --no-deps --force tf-models-nightly==2.9.0.dev20220523 opencv-python-headless==4.5.4.60"
 
 bash cluster-bcast.sh dtensor-jobs ./
 bash cluster-bcast.sh launch ./
-
 bash cluster-run.sh "if ! [[ -d dtensor-gpu-gcp ]]; then git clone https://github.com/rainwoodman/dtensor-gpu-gcp; fi"
 bash cluster-run.sh "cd dtensor-gpu-gcp; git pull"
 bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
@@ -75,6 +76,8 @@ cat <<EOF
 Next, run the application with,
 
   bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
+
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
 
 When done, delete the cluster with,
 

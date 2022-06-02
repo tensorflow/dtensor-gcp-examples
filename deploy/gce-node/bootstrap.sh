@@ -64,9 +64,13 @@ Next, run the application with 4 clients:
 
   bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
 
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
+
 As there only 1 node, you can also run the application with a single client.
 
   bash cluster-run.sh "conda activate py310; python dtensor-gpu-gcp/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
+
+  bash cluster-run.sh "conda activate py310; python dtensor-gpu-gcp/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
 
 When done, delete the cluster with,
 
