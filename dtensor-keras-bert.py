@@ -11,7 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""bert model with dtensor. """
+"""Bert model with dtensor.
+
+This application sets up a Bert Model with 8 devices, using a 4x2 mesh,
+4 for the batch dimension, and 2 for the model dimension.
+"""
 
 import argparse
 import numpy as np
@@ -38,7 +42,7 @@ BATCH_DIM = "batch"
 
 mesh_dims = [
     (BATCH_DIM, 4),  # shard to 4 devices in batch dimension
-    (MODEL_DIM, 2),  # shad to 2 devices in model dimension
+    (MODEL_DIM, 2),  # shard to 2 devices in model dimension
 ]
 
 # Parameters for Bert model
@@ -73,57 +77,88 @@ def configure_virtual_cpus(ncpu):
   ] * ncpu)
 
 
+client_mesh = None
+
+
+def unique_across_clients(x):
+  """Returns the set of unique values of x across all clients."""
+  global client_mesh
+  if client_mesh is None:
+    client_mesh = dtensor.create_distributed_mesh(
+        [("clients", dtensor.num_clients())],
+        device_type="CPU",
+        num_global_devices=dtensor.num_clients())
+
+  packed = dtensor.pack([tf.constant([x], tf.int32)],
+                        layout=dtensor.Layout(["clients"], client_mesh))
+  replicated = dtensor.relayout(
+      packed, layout=dtensor.Layout([dtensor.UNSHARDED], client_mesh))
+  unique = np.unique(replicated.numpy())
+  unique = np.sort(unique)
+  return list(unique)
+
+
 # ML starts here
 def get_dataset(mesh):
 
   def get_pipeline_params(mesh=mesh):
-    # pipeline_id determines the unique set of training data set.
-    # We use the first batch dim device as the ID of the input
-    # pipeline. This ensures all model shards in the same batch 'slab' of the
-    # mesh receive the same data.
-    # local_batch_dim_size is the number of unique batch dim locations of local
-    # devices. It determines the number of batches fetched by this client.
-    locs = set()
+    # The return value is similiar to tf.distribute.InputContext.
+    # input_pipeline_id: the id of the input pipeline (0 ~ num_input_pipelines)
+    # num_input_pipelines: number of unique input pipeline ids.
+    # num_local_replica_in_sync: the number of data samples processed by this
+    # client per sync.
+
+    replicas = set()
     for entry in mesh.local_device_locations():
-      locs.add(entry[BATCH_DIM])
-    return dict(pipeline_id=min(locs), local_batch_dim_size=len(locs))
+      replicas.add(entry[BATCH_DIM])
+    first_replica = min(replicas)
+    first_replicas = unique_across_clients(first_replica)
+    pipeline_id = first_replicas.index(first_replica)
+    return dict(
+        input_pipeline_id=pipeline_id,
+        num_input_pipelines=len(first_replicas),
+        num_local_replicas_in_sync=len(replicas))
 
   pipeline_params = get_pipeline_params(mesh)
 
   dprint("Pipeline Params", pipeline_params)
-  np.random.seed(pipeline_params["pipeline_id"])
+  rng = np.random.RandomState(pipeline_params["input_pipeline_id"])
 
-  word_id_data = np.random.randint(
-      vocab_size, size=(batch_size, sequence_length))
-  mask_data = np.random.randint(num_classes, size=(batch_size, sequence_length))
-  type_id_data = np.random.randint(
-      num_classes, size=(batch_size, sequence_length))
-  labels = np.random.randint(num_classes, size=(batch_size))
+  word_id_data = rng.randint(vocab_size, size=(batch_size, sequence_length))
+  mask_data = rng.randint(num_classes, size=(batch_size, sequence_length))
+  type_id_data = rng.randint(num_classes, size=(batch_size, sequence_length))
+  labels = rng.randint(num_classes, size=(batch_size))
 
   # Create dummy dataset
   client_local_batch_size = batch_size // mesh.dim_size(
-      BATCH_DIM) * pipeline_params["local_batch_dim_size"]
+      BATCH_DIM) * pipeline_params["num_local_replicas_in_sync"]
   client_local_dataset = tf.data.Dataset.from_tensor_slices(
       (word_id_data, mask_data, type_id_data, labels)).repeat()
   client_local_dataset = client_local_dataset.batch(client_local_batch_size)
 
   # Pack the input into dtensor
-  def shard_data(tensor, mesh=mesh):
-    # We evenly split the tensor
-    loc = set()
+  def shard_data(tensor, batch_dim=BATCH_DIM, mesh=mesh):
+    # Batch shard the per-client data tensor to a DTensor.
+    layout = dtensor.Layout.batch_sharded(
+        mesh, batch_dim, rank=len(tensor.shape))
+
+    replicas = set()
     for entry in mesh.local_device_locations():
-      loc.add(entry["batch"])
-    map = {
-        device_loc: tensor_loc
-        for tensor_loc, device_loc in enumerate(sorted(loc))
+      replicas.add(entry[batch_dim])
+    replica_to_slice = {
+        replica_id: slice_id
+        for slice_id, replica_id in enumerate(sorted(replicas))
     }
 
-    layout = dtensor.Layout.batch_sharded(
-        mesh, BATCH_DIM, rank=len(tensor.shape))
-    tensors = tf.split(tensor, len(loc), axis=0)
+    # Each batch-replica will receive an equal slice of the data tensor.
+    slices = tf.split(tensor, len(replicas), axis=0)
+
+    # Find the slice for each local device, then pack the components to a DTensor.
     components = []
     for entry in mesh.local_device_locations():
-      components.append(tensors[map[entry["batch"]]])
+      replica_id = entry[batch_dim]
+      slice_id = replica_to_slice[replica_id]
+      components.append(slices[slice_id])
     return dtensor.pack(components, layout)
 
   return client_local_dataset, shard_data
@@ -163,9 +198,14 @@ def train_model(model,
       d_type_id_data = pack_fn(type_id_data)
       d_labels = pack_fn(labels)
       assert d_labels.shape[0] == batch_size
-      total_loss += train_step(model,
-                               [d_word_id_data, d_mask_data, d_type_id_data],
-                               d_labels, loss_obj, optimizer)
+      # FIXME(rainwoodman): This run_on could have been merged into the model
+      # We need it here becasue the init_scope in the keras model is eagerly
+      # executed using the default mesh, which may differ from the mesh
+      # we intended to use.
+      with dtensor.run_on(mesh):
+        total_loss += train_step(model,
+                                 [d_word_id_data, d_mask_data, d_type_id_data],
+                                 d_labels, loss_obj, optimizer)
 
     train_loss = tf.reduce_mean(total_loss / steps_per_epoch)
 
@@ -235,17 +275,20 @@ def main():
       mesh_dims, device_type=args.device_type, num_global_devices=8)
 
   # Ensure model replicas are initialized identically by using an identical
-  # Keras RNG seed across the clients.
+  # RNG seed across the clients (for numpy, tf and keras)
   tf.keras.utils.set_random_seed(1337)
   tf.keras.backend.experimental.enable_tf_random_generator()
 
   # Data, model, and optimizer.
   dataset, pack_fn = get_dataset(mesh)
 
-  model = get_model(mesh)
-
-  optimizer = tf.keras.dtensor.experimental.optimizers.Adam(
-      learning_rate=0.001, mesh=mesh)
+  # FIXME(rainwoodman): The run_on() should have been merged into the
+  # keras.dtensor API points. Without run_on() the eagerly executed code
+  # in Keras uses the default mesh which can be wrong and cause a segfault.
+  with dtensor.run_on(mesh):
+    model = get_model(mesh)
+    optimizer = tf.keras.dtensor.experimental.optimizers.Adam(
+        learning_rate=0.001, mesh=mesh)
 
   # Train the model
   train_model(model, optimizer, mesh, dataset, pack_fn)
