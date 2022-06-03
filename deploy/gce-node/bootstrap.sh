@@ -28,6 +28,7 @@ export INSTANCE_TYPE="n1-standard-16"
 export NAME="dtensor-singlenode"
 export PORT=9898
 
+DEVICE_TYPE=$1
 case "${DEVICE_TYPE}" in
   "cpu")
   export ACCELERATOR=""
