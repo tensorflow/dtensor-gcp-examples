@@ -297,9 +297,8 @@ def main():
   cpt = dtensor.DTensorCheckpoint(mesh=mesh, root=model)
   saved_path = cpt.save(os.path.join(args.prefix, "bert-checkpoint-1/cpt"))
 
-  # FIXME(qlzh727): Some 'unused' keras lazy variables leaked through causing
-  # problems during restore.
-  # cpt.restore(saved_path)
+  # Then load it back
+  cpt.restore(saved_path)
 
 
 if __name__ == "__main__":
