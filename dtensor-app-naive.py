@@ -13,7 +13,7 @@
 # limitations under the License.
 """This is a naive dtensor application.
 
-It performs a global reduce sum on a mesh of 4 devices. The 4 devices can
+It performs a global reduce sum on a mesh of N devices. The N devices can
 be on the same client or on different clients.
 """
 import argparse
@@ -28,7 +28,15 @@ ap.add_argument(
     default='gs://dtensor-checkpoints',
     help='prefix for checkpointing')
 ap.add_argument(
-    "--device-type", default="GPU", choices=["GPU", "CPU"], help="device type")
+    '--device-type',
+    default='GPU',
+    choices=['GPU', 'TPU', 'CPU'],
+    help='device type')
+ap.add_argument(
+    '--num-global-devices',
+    type=int,
+    default=8,
+    help='number of global devices (only applies to non-TPU devices)')
 
 def configure_virtual_cpus(ncpu):
   phy_devices = tf.config.list_physical_devices('CPU')
@@ -42,21 +50,29 @@ def main():
 
   print(tf.__version__)
 
-  # Checkpointing requires the same number (or more) of logical CPU devices
-  # as the number of GPU devices.
-  configure_virtual_cpus(8 // dtensor.num_clients())
-  dtensor.initialize_multi_client()
+  if args.device_type != 'TPU':
+    # Checkpointing requires the same number (or more) of logical CPU devices
+    # as the number of GPU devices.
+    num_global_devices = args.num_global_devices
+    configure_virtual_cpus(num_global_devices // dtensor.num_clients())
+    # Initializes multi-client DTensor.
+    dtensor.initialize_multi_client()
+  else:
+    num_global_devices = None  # all TPU devices will be used.
+    # Initialize the TPU system. Also initializes multi-client DTensor.
+    dtensor.initialize_tpu_system()
 
-  print("device type", args.device_type, "num local devices",
-           dtensor.num_local_devices(args.device_type))
+  print("Device type:", args.device_type)
+  print("Num local devices:", dtensor.num_local_devices(args.device_type))
+  print("Num global devices:", dtensor.num_global_devices(args.device_type))
 
-  mesh = dtensor.create_distributed_mesh([('batch', 8)],
-                                       device_type=args.device_type,
-                                       num_global_devices=8)
-
+  mesh = dtensor.create_distributed_mesh(
+      [('batch', dtensor.num_global_devices(args.device_type))],
+      device_type=args.device_type,
+      num_global_devices=num_global_devices)
 
   layout = dtensor.Layout(['batch', dtensor.UNSHARDED], mesh)
-  data = dtensor.call_with_layout(tf.ones, layout, shape=(16, 100))
+  data = dtensor.call_with_layout(tf.ones, layout, shape=(32, 100))
   print(data)
 
   # Cross-client reduction
@@ -65,7 +81,9 @@ def main():
   # Checkpointing
   v = dtensor.DVariable(data)
   cpt = dtensor.DTensorCheckpoint(mesh=mesh, v=v)
-  cpt.save(os.path.join(args.prefix, 'checkpoint-1'))
+  saved_path = cpt.save(os.path.join(args.prefix, 'checkpoint-1'))
+  # Restoring checkpoint
+  cpt.restore(saved_path)
 
 
 main()

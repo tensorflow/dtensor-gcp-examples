@@ -1,7 +1,7 @@
-# dtensor-gpu-gcp
+# DTensor GCP Examples
 
-This project contains an example of using multi-client DTensor on GCP with a
-cluster of GPUs.
+This project contains examples of using multi-client DTensor on GCP with a
+cluster of GPUs or TPUs.
 
 ## Prerequirement
 
