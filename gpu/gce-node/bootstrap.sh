@@ -21,20 +21,28 @@
 #
 # The git repo is cloned to the VMs.
 
+DEVICE_TYPE=${1:-gpu}
+
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
 export IMAGE_FAMILY=common-cu113
 export ZONE=us-west1-b
-export INSTANCE_TYPE="n1-standard-16"
-export NAME="dtensor-singlenode"
+export INSTANCE_TYPE="n1-standard-64"
+export NAME="${USER}-dtensor-singlenode-${DEVICE_TYPE}"
 export PORT=9898
 
-DEVICE_TYPE=$1
 case "${DEVICE_TYPE}" in
+  "dev")
+  export ACCELERATOR="type=nvidia-tesla-k80,count=8"
+  ;;
   "cpu")
   export ACCELERATOR=""
   ;;
-  * )
+  "gpu" )
   export ACCELERATOR="type=nvidia-tesla-v100,count=8"
+  ;;
+  "*" )
+  echo "Unknown device type ${DEVICE_TYPE}"
+  exit 1
   ;;
 esac
 
@@ -50,7 +58,8 @@ gcloud compute instances create $NAME \
      --maintenance-policy=TERMINATE   \
      --accelerator="$ACCELERATOR"    \
      --machine-type=$INSTANCE_TYPE     \
-     --boot-disk-size=120GB   \
+     --boot-disk-size=200GB   \
+     --boot-disk-type=pd-ssd   \
      --scopes=default,storage-rw \
      --metadata="install-nvidia-driver=True"
 set +x
@@ -63,7 +72,7 @@ done
 bash cluster-run.sh "sudo /opt/conda/bin/conda clean -q -y --all"
 bash cluster-run.sh "conda create -q -y -n py310 python=3.10"
 bash cluster-run.sh "conda activate py310; pip install -q tf-nightly tf-models-nightly"
-# Upgrade to a tf-model-nightly version with our fixes.
+# Upgrade to a tf-models-nightly version with our fixes.
 bash cluster-run.sh "conda activate py310; pip install -q --no-deps --force tf-models-nightly==2.9.0.dev20220523 opencv-python-headless==4.5.4.60"
 bash cluster-bcast.sh launch ./
 bash cluster-run.sh "if ! [[ -d dtensor-gcp-examples ]]; then git clone https://github.com/tensorflow/dtensor-gcp-examples; fi"

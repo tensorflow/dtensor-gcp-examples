@@ -21,22 +21,30 @@
 #
 # The git repo is cloned to the VMs.
 
-DEVICE_TYPE="$1"
+DEVICE_TYPE=${1:-gpu}
+
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
 export IMAGE_FAMILY=common-cu113
 export ZONE=us-west1-b
 export INSTANCE_TYPE="n1-standard-8"
 export COUNT=4
-export NAME_PREFIX="dtensor-cluster"
+export NAME_PREFIX="${USER}-dtensor-cluster-${DEVICE_TYPE}"
 export PORT=9898
-export TAGS="dtensor-cluster-node"
+export TAGS="${NAME_PREFIX}-node"
 
 case "${DEVICE_TYPE}" in
+  "dev")
+  export ACCELERATOR="type=nvidia-tesla-k80,count=2"
+  ;;
   "cpu")
   export ACCELERATOR=""
   ;;
-  * )
-  export ACCELERATOR="type=nvidia-tesla-t4,count=2"
+  "gpu" )
+  export ACCELERATOR="type=nvidia-tesla-v100,count=2"
+  ;;
+  "*" )
+  echo "Unknown device type ${DEVICE_TYPE}"
+  exit 1
   ;;
 esac
 
@@ -56,9 +64,10 @@ gcloud compute instances bulk create --predefined-names=$(printf "%s," ${INSTANC
      --accelerator="$ACCELERATOR"    \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
+     --boot-disk-type=pd-ssd   \
      --scopes=default,storage-rw \
      --metadata="install-nvidia-driver=True"  \
-     --count=4 \
+     --count=${COUNT} \
      --tags=${TAGS}
 set +x
 
