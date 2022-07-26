@@ -13,8 +13,9 @@
 # limitations under the License.
 """Bert model with dtensor.
 
-This application sets up a Bert Model with 8 devices, using a 4x2 mesh,
-4 for the batch dimension, and 2 for the model dimension.
+This application sets up a Bert Model using a mesh with batch and model
+dimensions. The size of the mesh can be configured using flags, otherwise it
+defaults to a 4x2 mesh on 8 devices (4 for batch dim and 2 for model dim).
 """
 
 import argparse
@@ -33,17 +34,30 @@ ap.add_argument(
     default="gs://dtensor-checkpoints",
     help="prefix for checkpointing")
 ap.add_argument(
-    "--device-type", default="GPU", choices=["GPU", "CPU"], help="device type")
+    "--device-type",
+    default="GPU",
+    choices=["GPU", "TPU", "CPU"],
+    help="device type")
+ap.add_argument(
+    "--batch-dim-size",
+    type=int,
+    default=4,
+    help="size of the mesh batch dimension")
+ap.add_argument(
+    "--model-dim-size",
+    type=int,
+    default=2,
+    help="size of the mesh model dimension")
+ap.add_argument(
+    "--num-global-devices",
+    type=int,
+    default=8,
+    help="number of global devices (only applies to non-TPU devices)")
 
 # Parameters for distribution(dtensor)
 
-MODEL_DIM = "model"
 BATCH_DIM = "batch"
-
-mesh_dims = [
-    (BATCH_DIM, 4),  # shard to 4 devices in batch dimension
-    (MODEL_DIM, 2),  # shard to 2 devices in model dimension
-]
+MODEL_DIM = "model"
 
 # Parameters for Bert model
 num_classes = 2  # sentiment classifier
@@ -263,16 +277,28 @@ def main():
 
   print("tensorflow version", tf.__version__)
 
-  # Initializes multi-client dtensor.
-  configure_virtual_cpus(8 // dtensor.num_clients())
-  dtensor.initialize_multi_client()
+  if args.device_type != 'TPU':
+    num_global_devices = args.num_global_devices
+    # Checkpointing requires the same number (or more) of logical CPU devices
+    # as the number of GPU devices.
+    configure_virtual_cpus(num_global_devices // dtensor.num_clients())
+    # Initializes multi-client dtensor.
+    dtensor.initialize_multi_client()
+  else:
+    num_global_devices = None  # all TPU devices will be used.
+    # Initialize the TPU system. Also initializes multi-client DTensor.
+    dtensor.initialize_tpu_system()
 
-  dprint("device type", args.device_type, "num local devices",
-         dtensor.num_local_devices(args.device_type))
+  dprint("Device type:", args.device_type)
+  dprint("Num local devices:", dtensor.num_local_devices(args.device_type))
+  dprint("Num global devices:", dtensor.num_global_devices(args.device_type))
 
   # Creates the DTensor device mesh.
+  mesh_dims = [(BATCH_DIM, args.batch_dim_size),
+               (MODEL_DIM, args.model_dim_size)]
   mesh = dtensor.create_distributed_mesh(
-      mesh_dims, device_type=args.device_type, num_global_devices=8)
+      mesh_dims, device_type=args.device_type,
+      num_global_devices=num_global_devices)
 
   # Ensure model replicas are initialized identically by using an identical
   # RNG seed across the clients (for numpy, tf and keras)

@@ -14,45 +14,52 @@
 # limitations under the License.
 
 #
-# Configures a GPU VM node for DTensor.
+# Configures a GPU VM cluster for DTensor.
 
 # This command produces cluster-run.sh, which can be used to run command
-# on the node.
+# on all nodes of the cluster.
 #
 # The git repo is cloned to the VMs.
 
+DEVICE_TYPE="$1"
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
 export IMAGE_FAMILY=common-cu113
 export ZONE=us-west1-b
-export INSTANCE_TYPE="n1-standard-16"
-export NAME="dtensor-singlenode"
+export INSTANCE_TYPE="n1-standard-8"
+export COUNT=4
+export NAME_PREFIX="dtensor-cluster"
 export PORT=9898
+export TAGS="dtensor-cluster-node"
 
-DEVICE_TYPE=$1
 case "${DEVICE_TYPE}" in
   "cpu")
   export ACCELERATOR=""
   ;;
   * )
-  export ACCELERATOR="type=nvidia-tesla-v100,count=8"
+  export ACCELERATOR="type=nvidia-tesla-t4,count=2"
   ;;
 esac
 
-INSTANCES=($NAME)
+INSTANCES=()
+for i in `seq -s " " -f %03g 1 $COUNT`; do
+  INSTANCES+=("${NAME_PREFIX}-${i}")
+done
 
 bash `dirname $0`/../make-cluster-commands.sh "${ZONE}" "${INSTANCES[@]}"
 
 set -x
-gcloud compute instances create $NAME \
+gcloud compute instances bulk create --predefined-names=$(printf "%s," ${INSTANCES[@]} | sed 's/,$//') \
      --zone=$ZONE    \
      --image-family=$IMAGE_FAMILY     \
      --image-project=deeplearning-platform-release   \
-     --maintenance-policy=TERMINATE   \
+     --on-host-maintenance=TERMINATE   \
      --accelerator="$ACCELERATOR"    \
      --machine-type=$INSTANCE_TYPE     \
      --boot-disk-size=120GB   \
      --scopes=default,storage-rw \
-     --metadata="install-nvidia-driver=True"
+     --metadata="install-nvidia-driver=True"  \
+     --count=4 \
+     --tags=${TAGS}
 set +x
 
 while bash cluster-run.sh ls |grep 'exited with return code'; do
@@ -60,28 +67,33 @@ while bash cluster-run.sh ls |grep 'exited with return code'; do
   sleep 10
 done
 
+# Creates a per machine launcher script.
+DTENSOR_JOBS_LIST=$(
+for i in ${INSTANCES[@]}; do
+  echo -n "${i}:${PORT}\\n"
+done
+)
+echo "$DTENSOR_JOBS_LIST"
+sed "/^@DTENSOR_JOBS_LIST@$/c${DTENSOR_JOBS_LIST}" launch.py.in > launch
+chmod +x launch
+
 bash cluster-run.sh "sudo /opt/conda/bin/conda clean -q -y --all"
 bash cluster-run.sh "conda create -q -y -n py310 python=3.10"
 bash cluster-run.sh "conda activate py310; pip install -q tf-nightly tf-models-nightly"
-# Upgrade to a tf-model-nightly version with our fixes.
+# Upgrade to a tf-models-nightly version with our fixes.
 bash cluster-run.sh "conda activate py310; pip install -q --no-deps --force tf-models-nightly==2.9.0.dev20220523 opencv-python-headless==4.5.4.60"
+
 bash cluster-bcast.sh launch ./
-bash cluster-run.sh "if ! [[ -d dtensor-gpu-gcp ]]; then git clone https://github.com/rainwoodman/dtensor-gpu-gcp; fi"
-bash cluster-run.sh "cd dtensor-gpu-gcp; git pull"
-bash cluster-run.sh "ls -l dtensor-gpu-gcp;"
+bash cluster-run.sh "if ! [[ -d dtensor-gcp-examples ]]; then git clone https://github.com/tensorflow/dtensor-gcp-examples; fi"
+bash cluster-run.sh "cd dtensor-gcp-examples; git pull"
+bash cluster-run.sh "ls -l dtensor-gcp-examples;"
 
 cat <<EOF
-Next, run the application with 4 clients:
+Next, run the application with,
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gpu-gcp/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
-
-As there only 1 node, you can also run the application with a single client.
-
-  bash cluster-run.sh "conda activate py310; python dtensor-gpu-gcp/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
-
-  bash cluster-run.sh "conda activate py310; python dtensor-gpu-gcp/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
 
 When done, delete the cluster with,
 
