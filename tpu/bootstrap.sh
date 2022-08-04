@@ -20,7 +20,7 @@
 #
 # The git repo is cloned to the VMs.
 
-NAME="dtensor-tpu-test"
+NAME="${USER}-dtensor-tpu-test"
 ZONE=europe-west4-a
 VERSION="tpu-vm-tf-2.9.1"
 TOPOLOGY=$1
