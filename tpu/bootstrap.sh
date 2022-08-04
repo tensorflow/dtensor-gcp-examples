@@ -28,6 +28,10 @@ NUM_CORES=$(cut -d "-" -f2- <<< $TOPOLOGY)
 export NUM_WORKERS=$(($NUM_CORES / 8))
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
 
+if [ $NUM_WORKERS -gt 1 ]; then
+  VERSION+="-pod"
+fi
+
 bash `dirname $0`/make-cluster-commands.sh "${NAME}" "${ZONE}" "${NUM_WORKERS}"
 
 set -x
