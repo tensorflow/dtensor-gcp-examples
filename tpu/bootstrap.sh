@@ -20,10 +20,15 @@
 #
 # The git repo is cloned to the VMs.
 
-NAME="${USER}-dtensor-tpu-test"
+if [ $# -ne 1 ]; then
+  echo 1>&2 "$0: need to specify a TPU topology"
+  exit 2
+fi
+
+TOPOLOGY=$1
+NAME="${USER}-dtensor-tpu-${TOPOLOGY}-test"
 ZONE=europe-west4-a
 VERSION="tpu-vm-tf-2.9.1"
-TOPOLOGY=$1
 NUM_CORES=$(cut -d "-" -f2- <<< $TOPOLOGY)
 export NUM_WORKERS=$(($NUM_CORES / 8))
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
@@ -56,10 +61,10 @@ cat > launch <<EOF
 #! /bin/bash
 
 export TF_CPP_MIN_LOG_LEVEL=3
-export DTENSOR_CLIENT_ID="\${HOSTNAME: -1}"
+export DTENSOR_CLIENT_ID="$(echo \$HOSTNAME | rev | cut -d "-" -f1 | rev)"
 export DTENSOR_NUM_CLIENTS=$NUM_WORKERS
 export DTENSOR_JOB_NAME=worker
-WORKER_NAME="\${HOSTNAME:: -2}"
+WORKER_NAME="$(echo \$HOSTNAME | rev | cut -d "-" -f1 --complement | rev)"
 PORT=19011
 export DTENSOR_JOBS="\${WORKER_NAME}-0:\${PORT}"
 
