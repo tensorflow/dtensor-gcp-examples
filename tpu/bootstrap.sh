@@ -61,10 +61,10 @@ cat > launch <<EOF
 #! /bin/bash
 
 export TF_CPP_MIN_LOG_LEVEL=3
-export DTENSOR_CLIENT_ID="$(echo \$HOSTNAME | rev | cut -d "-" -f1 | rev)"
+export DTENSOR_CLIENT_ID="\$(echo \$HOSTNAME | rev | cut -d "-" -f1 | rev)"
 export DTENSOR_NUM_CLIENTS=$NUM_WORKERS
 export DTENSOR_JOB_NAME=worker
-WORKER_NAME="$(echo \$HOSTNAME | rev | cut -d "-" -f1 --complement | rev)"
+WORKER_NAME="\$(echo \$HOSTNAME | rev | cut -d "-" -f1 --complement | rev)"
 PORT=19011
 export DTENSOR_JOBS="\${WORKER_NAME}-0:\${PORT}"
 
