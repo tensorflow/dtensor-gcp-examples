@@ -100,8 +100,8 @@ def unique_across_clients(x):
   if client_mesh is None:
     client_mesh = dtensor.create_distributed_mesh(
         [("clients", dtensor.num_clients())],
-        device_type="CPU",
-        num_global_devices=dtensor.num_clients())
+        local_devices=["CPU:0"],
+        device_type="CPU")
 
   packed = dtensor.pack([tf.constant([x], tf.int32)],
                         layout=dtensor.Layout(["clients"], client_mesh))
@@ -297,8 +297,7 @@ def main():
   mesh_dims = [(BATCH_DIM, args.batch_dim_size),
                (MODEL_DIM, args.model_dim_size)]
   mesh = dtensor.create_distributed_mesh(
-      mesh_dims, device_type=args.device_type,
-      num_global_devices=num_global_devices)
+      mesh_dims, device_type=args.device_type)
 
   # Ensure model replicas are initialized identically by using an identical
   # RNG seed across the clients (for numpy, tf and keras)
