@@ -68,8 +68,7 @@ def main():
 
   mesh = dtensor.create_distributed_mesh(
       [('batch', dtensor.num_global_devices(args.device_type))],
-      device_type=args.device_type,
-      num_global_devices=num_global_devices)
+      device_type=args.device_type)
 
   layout = dtensor.Layout(['batch', dtensor.UNSHARDED], mesh)
   data = dtensor.call_with_layout(tf.ones, layout, shape=(32, 100))
