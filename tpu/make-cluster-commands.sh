@@ -37,10 +37,12 @@ for ((i=0;i<$NUM_WORKERS;i++)); do
 done
 
 for CPID in \${PIDS[@]}; do
-  wait -fn \${CPID}
   NODE=\$(cat /tmp/dtensor/pids/\${CPID})
   echo ===Log from "\${NODE}"===
-  cat /tmp/${NAME}_\${NODE}.log
+  tail -c +0 -f /tmp/${NAME}_\${NODE}.log &
+  TPID=\$!
+  wait -fn \${CPID}
+  kill \${TPID}
 done
 EOF
 

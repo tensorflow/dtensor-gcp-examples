@@ -31,17 +31,19 @@ PIDS=()
 mkdir -p /tmp/dtensor/pids
 for i in ${INSTANCES[@]}; do
   echo Running on "\${i}" "\$*"
-  gcloud compute ssh \$i --zone=$ZONE -- -t -q -n "-o ProxyCommand=corp-ssh-helper %h %p" bash -c -l "'\$*'" > /tmp/\${i}.log 2>&1 &
+  gcloud compute ssh \$i --zone=$ZONE -- -t -q -n "-o ProxyCommand=corp-ssh-helper %h %p" bash -c -l "'\$*'" > /tmp/${NAME}_\${i}.log 2>&1 &
   CPID=\$!
   PIDS+=("\${CPID}")
   echo \$i > "/tmp/dtensor/pids/\${CPID}"
 done
 
 for CPID in \${PIDS[@]}; do
-  wait -fn \${CPID}
   NODE=\$(cat /tmp/dtensor/pids/\${CPID})
   echo ===Log from "\${NODE}"===
-  cat /tmp/\${NODE}.log
+  tail -c +0 -f /tmp/${NAME}_\${NODE}.log &
+  TPID=\$!
+  wait -fn \${CPID}
+  kill \${TPID}
 done
 EOF
 
