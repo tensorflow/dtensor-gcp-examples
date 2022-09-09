@@ -17,7 +17,6 @@
 NAME=$1
 ZONE=$2
 NUM_WORKERS=$3
-shift
 
 # If there is a proxy, use it (For Googlers).
 if which corp-ssh-helper > /dev/null; then
@@ -37,9 +36,8 @@ for ((i=0;i<$NUM_WORKERS;i++)); do
   echo \$i > "/tmp/dtensor/pids/\${CPID}"
 done
 
-while [[ -n "\${PIDS}" ]]; do
-  wait -p CPID -fn "\${PIDS[@]}"
-  PIDS=(\${PIDS[@]/\$CPID})
+for CPID in \${PIDS[@]}; do
+  wait -fn \${CPID}
   NODE=\$(cat /tmp/dtensor/pids/\${CPID})
   echo ===Log from "\${NODE}"===
   cat /tmp/${NAME}_\${NODE}.log

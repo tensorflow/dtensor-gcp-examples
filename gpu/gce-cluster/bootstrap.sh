@@ -53,7 +53,7 @@ for i in `seq -s " " -f %03g 1 $COUNT`; do
   INSTANCES+=("${NAME_PREFIX}-${i}")
 done
 
-bash `dirname $0`/../make-cluster-commands.sh "${ZONE}" "${INSTANCES[@]}"
+bash `dirname $0`/../make-cluster-commands.sh "${NAME_PREFIX}" "${ZONE}" "${INSTANCES[@]}"
 
 set -x
 gcloud compute instances bulk create --predefined-names=$(printf "%s," ${INSTANCES[@]} | sed 's/,$//') \

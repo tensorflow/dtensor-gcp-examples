@@ -28,7 +28,7 @@ fi
 TOPOLOGY=$1
 NAME="${USER}-dtensor-tpu-${TOPOLOGY}-test"
 ZONE=europe-west4-a
-VERSION="tpu-vm-tf-2.9.1"
+VERSION="v2-nightly"
 NUM_CORES=$(cut -d "-" -f2- <<< $TOPOLOGY)
 export NUM_WORKERS=$(($NUM_CORES / 8))
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}

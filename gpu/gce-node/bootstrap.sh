@@ -48,7 +48,7 @@ esac
 
 INSTANCES=($NAME)
 
-bash `dirname $0`/../make-cluster-commands.sh "${ZONE}" "${INSTANCES[@]}"
+bash `dirname $0`/../make-cluster-commands.sh "${NAME}" "${ZONE}" "${INSTANCES[@]}"
 
 set -x
 gcloud compute instances create $NAME \
