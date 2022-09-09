@@ -85,4 +85,22 @@ def main():
   cpt.restore(saved_path)
 
 
+# Patch the _DVariableSaveable for GPU loading. See b/236027284 for more details.
+from tensorflow.dtensor.python.d_variable import _DVariableSaveable
+
+def restore(self, restored_tensors, restored_shapes):
+  """Restores the same value into all variables."""
+  tensor, = restored_tensors
+
+  if self._original_layout.mesh.device_type().upper() != 'CPU':
+    with tf.device(self._dvariable.device):
+      tensor = dtensor.pack(
+          dtensor.unpack(tensor), self._original_layout)
+  return self._dvariable.assign(
+      tf.cast(tensor, dtype=self._dvariable.dtype) if self._dvariable
+      .save_as_bf16 else tensor)
+
+
+_DVariableSaveable.restore = restore
+
 main()
