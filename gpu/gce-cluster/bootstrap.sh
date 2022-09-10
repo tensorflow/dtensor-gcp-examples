@@ -98,9 +98,9 @@ bash cluster-run.sh "ls -l dtensor-gcp-examples;"
 cat <<EOF
 Next, run the application with,
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-app-naive.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/app_naive"
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-keras-bert.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/keras_bert"
 
 When done, delete the cluster with,
 
