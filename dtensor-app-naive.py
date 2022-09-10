@@ -98,7 +98,7 @@ def configure_virtual_devices(num_device, device_type):
       tf.config.set_logical_device_configuration(phy_devices[n],
                                                  [device_config])
   else:
-    phy_to_logical_ratio = math.ceil(num_device / len(phy_devices))
+    phy_to_logical_ratio = num_device // len(phy_devices)
     for n in range(len(phy_devices)):
       print(f'Config for device id {n}')
       tf.config.set_logical_device_configuration(phy_devices[n], [
@@ -148,7 +148,7 @@ def main():
   # Checkpointing
   v = dtensor.DVariable(data)
   cpt = dtensor.DTensorCheckpoint(mesh=mesh, v=v)
-  saved_path = cpt.save(os.path.join(args.prefix, 'checkpoint-1'))
+  saved_path = cpt.save(os.path.join(args.ckpt_path_prefix, 'checkpoint-1'))
   # Restoring checkpoint
   cpt.restore(saved_path)
 

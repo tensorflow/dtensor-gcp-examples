@@ -83,7 +83,6 @@ python dtensor_bert_train.py --model_size=base --device_type=GPU \
 """
 
 import argparse
-import math
 import os
 import time
 
@@ -159,7 +158,7 @@ def configure_virtual_devices(num_device, device_type):
       tf.config.set_logical_device_configuration(phy_devices[n],
                                                  [device_config])
   else:
-    phy_to_logical_ratio = math.ceil(num_device / len(phy_devices))
+    phy_to_logical_ratio = num_device // len(phy_devices)
     for n in range(len(phy_devices)):
       print(f'Config for device id {n}')
       tf.config.set_logical_device_configuration(phy_devices[n], [
