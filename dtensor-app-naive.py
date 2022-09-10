@@ -26,7 +26,7 @@ Sample usage:
 1. Run on a single host with 8 GPUs:
 
 ```
-python dtensor_app_naive.py --device_type=GPU --num_global_devices=8
+python dtensor-app-naive.py --device_type=GPU --num_global_devices=8
 ```
 
 2. Run on 2 hosts with 16 GPUs:
@@ -36,14 +36,14 @@ python dtensor_app_naive.py --device_type=GPU --num_global_devices=8
 env DTENSOR_CLIENT_ID=0 DTENSOR_NUM_CLIENTS=2 \
     DTENSOR_JOB_NAME=training \
     DTENSOR_JOBS=host1:9991,host2:9991 \
-python dtensor_bert_train.py --device_type=GPU --num_global_devices=16
+python dtensor-app-naive.py --device_type=GPU --num_global_devices=16
 ```
 
 ```For host2
 env DTENSOR_CLIENT_ID=1 DTENSOR_NUM_CLIENTS=2 \
     DTENSOR_JOB_NAME=training \
     DTENSOR_JOBS=host1:9991,host2:9991 \
-python dtensor_bert_train.py --device_type=GPU --num_global_devices=16
+python dtensor-app-naive.py --device_type=GPU --num_global_devices=16
 ```
 
 """
