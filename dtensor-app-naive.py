@@ -11,10 +11,44 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This is a naive dtensor application.
+"""A simple dtensor application.
 
-It performs a global reduce sum on a mesh of N devices. The N devices can
-be on the same client or on different clients.
+The following script is a simple application using the DTensor API.
+
+It performs a global reduce sum on a mesh of N devices, then performs 
+checkpoint save and restore.
+The N devices can be on the same client or on different clients.
+
+Refer to the project README for how to use this script on GCP.
+
+Sample usage:
+
+1. Run on a single host with 8 GPUs:
+
+```
+python dtensor_app_naive.py --device_type=GPU \
+  --num_accelerator=8
+```
+
+2. Run on 2 hosts with 16 GPUs:
+(The port number 9991 is an arbitrary free port on the hosts.)
+
+```For host1
+env DTENSOR_CLIENT_ID=0 DTENSOR_NUM_CLIENTS=2 \
+    DTENSOR_JOB_NAME=training \
+    DTENSOR_JOBS=host1:9991,host2:9991 \
+python dtensor_bert_train.py --model_size=base --device_type=GPU \
+  --num_global_devices=16
+```
+
+```For host2
+env DTENSOR_CLIENT_ID=1 DTENSOR_NUM_CLIENTS=2 \
+    DTENSOR_JOB_NAME=training \
+    DTENSOR_JOBS=host1:9991,host2:9991 \
+python dtensor_bert_train.py --model_size=base --device_type=GPU \
+  --num_global_devices=16
+```
+
 """
 import argparse
 import os
@@ -24,25 +58,59 @@ from tensorflow.experimental import dtensor
 
 ap = argparse.ArgumentParser()
 ap.add_argument(
-    '--prefix',
-    default='gs://dtensor-checkpoints',
+    '--ckpt_path_prefix',
+    default='gs://dtensor-checkpoints/app-naive',
     help='prefix for checkpointing')
 ap.add_argument(
-    '--device-type',
+    '--device_type',
     default='GPU',
     choices=['GPU', 'TPU', 'CPU'],
     help='device type')
 ap.add_argument(
-    '--num-global-devices',
+    '--num_global_devices',
     type=int,
     default=8,
-    help='number of global devices (only applies to non-TPU devices)')
+    help='Expected number of global accelerator devices for the run. '
+         'If different from number of available devices an error is raised.')
 
-def configure_virtual_cpus(ncpu):
-  phy_devices = tf.config.list_physical_devices('CPU')
-  tf.config.set_logical_device_configuration(phy_devices[0], [
-      tf.config.LogicalDeviceConfiguration(),
-  ] * ncpu)
+
+# Patch _DVariableSaveable for GPU loading. See b/236027284 for more details.
+from tensorflow.dtensor.python.d_variable import _DVariableSaveable
+
+def restore(self, restored_tensors, restored_shapes):
+  """Restores the same value into all variables."""
+  tensor, = restored_tensors
+
+  if self._original_layout.mesh.device_type().upper() != 'CPU':
+    with tf.device(self._dvariable.device):
+      tensor = dtensor.pack(
+          dtensor.unpack(tensor), self._original_layout)
+  return self._dvariable.assign(
+      tf.cast(tensor, dtype=self._dvariable.dtype) if self._dvariable
+      .save_as_bf16 else tensor)
+
+
+_DVariableSaveable.restore = restore
+
+
+def configure_virtual_devices(num_device, device_type):
+  phy_devices = tf.config.list_physical_devices(device_type)
+  device_config = tf.config.LogicalDeviceConfiguration()
+  if len(phy_devices) >= num_device:
+    for n in range(num_device):
+      tf.config.set_logical_device_configuration(phy_devices[n],
+                                                 [device_config])
+  else:
+    phy_to_logical_ratio = math.ceil(num_device / len(phy_devices))
+    for n in range(len(phy_devices)):
+      print(f'Config for device id {n}')
+      tf.config.set_logical_device_configuration(phy_devices[n], [
+          device_config,
+      ] * phy_to_logical_ratio)
+  return [f'{device_type}:{i}' for i in range(num_device)]
+
+
+# ============================ Main =======================================
 
 
 def main():
@@ -50,21 +118,24 @@ def main():
 
   print(tf.__version__)
 
-  if args.device_type != 'TPU':
-    # Checkpointing requires the same number (or more) of logical CPU devices
-    # as the number of GPU devices.
-    num_global_devices = args.num_global_devices
-    configure_virtual_cpus(num_global_devices // dtensor.num_clients())
-    # Initializes multi-client DTensor.
-    dtensor.initialize_multi_client()
-  else:
-    num_global_devices = None  # all TPU devices will be used.
-    # Initialize the TPU system. Also initializes multi-client DTensor.
-    dtensor.initialize_tpu_system()
+  # CPU device is needed for checkpoint, even when running on GPU mesh
+  # we need to config 1:1 mapping between accelerator and CPU for checkpoint.
+  # This need to happen before we init dtensor multi client.
+  configure_virtual_devices(args.num_global_devices // dtensor.num_clients(), 'CPU')
 
-  print("Device type:", args.device_type)
-  print("Num local devices:", dtensor.num_local_devices(args.device_type))
-  print("Num global devices:", dtensor.num_global_devices(args.device_type))
+  if args.device_type == 'GPU':
+    dtensor.initialize_multi_client()
+  elif args.device_type == 'TPU':
+    tf.experimental.dtensor.initialize_tpu_system()
+  else:  # args.device_type == 'CPU'
+    dtensor.initialize_multi_client()
+
+  print(f'Using {dtensor.num_local_devices(args.device_type)} local devices '
+        f'of type {args.device_type}, with {dtensor.num_clients()} clients.')
+
+  if dtensor.num_global_devices(args.device_type) != args.num_global_devices:
+    raise ValueError(f'Expect {args.num_accelerator} physical devices for '
+                   f'{args.device_type}, got device list: {gpu_devices}')
 
   mesh = dtensor.create_distributed_mesh(
       [('batch', dtensor.num_global_devices(args.device_type))],
@@ -84,23 +155,5 @@ def main():
   # Restoring checkpoint
   cpt.restore(saved_path)
 
-
-# Patch the _DVariableSaveable for GPU loading. See b/236027284 for more details.
-from tensorflow.dtensor.python.d_variable import _DVariableSaveable
-
-def restore(self, restored_tensors, restored_shapes):
-  """Restores the same value into all variables."""
-  tensor, = restored_tensors
-
-  if self._original_layout.mesh.device_type().upper() != 'CPU':
-    with tf.device(self._dvariable.device):
-      tensor = dtensor.pack(
-          dtensor.unpack(tensor), self._original_layout)
-  return self._dvariable.assign(
-      tf.cast(tensor, dtype=self._dvariable.dtype) if self._dvariable
-      .save_as_bf16 else tensor)
-
-
-_DVariableSaveable.restore = restore
 
 main()

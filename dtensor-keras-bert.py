@@ -27,6 +27,7 @@ Sample usage:
 
 1. Train a "tiny" Bert model with model+data parallel on single host with 8 GPU.
 This will run the Bert model with a 4x2 mesh (data x model).
+
 ```
 python dtensor_bert_train.py --model_size=tiny --device_type=GPU \
   --num_accelerator=8 --distribution_mode=batchmodel
@@ -34,41 +35,49 @@ python dtensor_bert_train.py --model_size=tiny --device_type=GPU \
 
 2. Train a "base" Bert model with data parallel on single host with 8 GPU.
 This will run the Bert model with data parallel only.
+
 ```
 python dtensor_bert_train.py --model_size=base --device_type=GPU \
-  --num_accelerator=8 --distribution_mode=batch
+  --num_global_devices=8 --distribution_mode=batch
 ```
 
 3. Train a "base" Bert model with model+data parallel on single host with 8 GPU.
 This will run the Bert model with a 2x4 mesh (data x model), which is different
 from the usage1.
+
 ```
 python dtensor_bert_train.py --model_size=base --device_type=GPU \
-  --num_accelerator=8 --distribution_mode=batchmodel --model_parallel_dim_size=4
+  --num_global_devices=8 --distribution_mode=batchmodel --model_parallel_dim_size=4
 ```
 
-4. Train a "base" Bert model with model+data parallel on a V3-8 TPU.
+4. Train a "base" Bert model with model+data parallel on a V2-8 TPU.
 This will run the Bert model with a 4x2 mesh (data x model).
 ! Note that the TPU instance need run with in as "TPU VM architecture" (1 VM).
+
 ```
 python dtensor_bert_train.py --model_size=base --device_type=TPU \
-  --num_accelerator=8 --distribution_mode=batchmodel
+  --num_global_devices=8 --distribution_mode=batchmodel
 ```
 
 5. Train a "base" Bert model with model+data parallel on a multi-client setting
 (2 hosts with 8 GPUs on each). please change the host1_address, host2_address
 and port in the following commmand accordingly. The following config will run
 a distributed mesh with 8x2 (data x model).
+
 ```For host1
+env DTENSOR_CLIENT_ID=0 DTENSOR_NUM_CLIENTS=2 \
+    DTENSOR_JOB_NAME=training \
+    DTENSOR_JOBS=host1:9991,host2:9991 \
 python dtensor_bert_train.py --model_size=base --device_type=GPU \
-  --num_accelerator=8 \
-  --global_jobs=host1_address:port1,host2_address:port2 --client_id=0
+  --num_global_devices=16
 ```
 
 ```For host2
+env DTENSOR_CLIENT_ID=1 DTENSOR_NUM_CLIENTS=2 \
+    DTENSOR_JOB_NAME=training \
+    DTENSOR_JOBS=host1:9991,host2:9991 \
 python dtensor_bert_train.py --model_size=base --device_type=GPU \
-  --num_accelerator=8 \
-  --global_jobs=host1_address:port1,host2_address:port2 --client_id=1
+  --num_global_devices=16
 ```
 
 """
@@ -110,30 +119,16 @@ ap.add_argument(
     choices=['TPU', 'GPU', 'CPU'],
     help='device type')
 ap.add_argument(
-    '--num_accelerator',
+    '--num_global_devices',
     default=8,
     type=int,
-    help='Number of local accelerator devices for the run. It will be used to '
-    'setup the mesh.'
-)
+    help='Expected number of global accelerator devices for the run. '
+         'If different from number of available devices an error is raised.')
 ap.add_argument(
     '--distribution_mode',
     default='batchmodel',
     choices=['batch', 'model', 'batchmodel'],
     help='distribution setting for the model and inputs')
-ap.add_argument(
-    '--global_jobs',
-    default='',
-    help='The addresses for all the jobs that participate the training work. '
-    'The valid form for this is `host1:port1,host2:port2`'
-)
-ap.add_argument(
-    '--client_id',
-    type=int,
-    default=0,
-    help='The client id for the local job. In the distribute training, each of '
-    'The client should have a different client id, start from 0.'
-)
 ap.add_argument(
     '--enable_profile_trace',
     default=False,
@@ -158,7 +153,6 @@ MODEL_DIM = 'y'
 
 def configure_virtual_devices(num_device, device_type):
   phy_devices = tf.config.list_physical_devices(device_type)
-  print(f'Physical device for {device_type}: {phy_devices}')
   device_config = tf.config.LogicalDeviceConfiguration()
   if len(phy_devices) >= num_device:
     for n in range(num_device):
@@ -533,8 +527,8 @@ def create_metrics(mesh):
 
 # ==================================== Checkpoint =================================
 
-# Patch the _DVariableSaveable for GPU loading. See b/236027284 for more details.
-_DVariableSaveable = tf.dtensor.python.d_variable._DVariableSaveable
+# Patch _DVariableSaveable for GPU loading. See b/236027284 for more details.
+from tensorflow.dtensor.python.d_variable import _DVariableSaveable
 
 
 def restore(self, restored_tensors, restored_shapes):
@@ -600,39 +594,36 @@ def main():
 
   print('tensorflow version', tf.__version__)
 
-  # ============================ Cluster and Mesh ============================
-  is_distribute_training = bool(args.global_jobs)
-
   # CPU device is needed for checkpoint, even when running on GPU mesh
   # we need to config 1:1 mapping between accelerator and CPU for checkpoint.
   # This need to happen before we init dtensor multi client.
-  cpu_devices = configure_virtual_devices(args.num_accelerator, 'CPU')
+  configure_virtual_devices(args.num_global_devices // dtensor.num_clients(), 'CPU')
 
-  if is_distribute_training:
-    global_jobs = args.global_jobs.split(',')
-    num_clients = len(global_jobs)
-    num_global_devices = num_clients * args.num_accelerator
-    client_id = int(args.client_id)
-    # Need to populate the env vars for initialize_multi_client()
-    os.environ['DTENSOR_CLIENT_ID'] = str(client_id)
-    os.environ['DTENSOR_NUM_CLIENTS'] = str(num_clients)
-    os.environ['DTENSOR_JOB_NAME'] = 'localhost'
-    os.environ['DTENSOR_JOBS'] = args.global_jobs
+  if args.device_type == 'GPU':
     dtensor.initialize_multi_client()
-  else:
-    num_global_devices = args.num_accelerator
+  elif args.device_type == 'TPU':
+    tf.experimental.dtensor.initialize_tpu_system()
+  else:  # args.device_type == 'CPU'
+    dtensor.initialize_multi_client()
+
+  print(f'Using {dtensor.num_local_devices(args.device_type)} local devices '
+        f'of type {args.device_type}, with {dtensor.num_clients()} clients.')
+
+  if dtensor.num_global_devices(args.device_type) != args.num_global_devices:
+    raise ValueError(f'Expect {args.num_accelerator} physical devices for '
+                   f'{args.device_type}, got device list: {gpu_devices}')
 
   is_batch_parallel = 'batch' in args.distribution_mode
   is_model_parallel = 'model' in args.distribution_mode
   if is_batch_parallel and is_model_parallel:
-    batch_parallel_dim = int(num_global_devices / args.model_parallel_dim_size)
+    batch_parallel_dim = args.num_global_devices // args.model_parallel_dim_size
     model_parallel_dim = args.model_parallel_dim_size
   elif is_batch_parallel:
-    batch_parallel_dim = num_global_devices
+    batch_parallel_dim = args.num_global_devices
     model_parallel_dim = 1
   else:
     batch_parallel_dim = 1
-    model_parallel_dim = num_global_devices
+    model_parallel_dim = args.num_global_devices
 
   mesh_dims = [
       (BATCH_DIM, batch_parallel_dim),
@@ -640,53 +631,7 @@ def main():
   ]
   print(f'Mesh setting is: {mesh_dims}')
 
-  if args.device_type == 'GPU':
-    gpu_devices = tf.config.list_logical_devices('GPU')
-    if len(gpu_devices) < args.num_accelerator:
-      raise ValueError(f'Expect {args.num_accelerator} physical devices for '
-                       f'{args.device_type}, got device list: {gpu_devices}')
-    if is_distribute_training:
-      mesh = dtensor.create_distributed_mesh(
-          mesh_dims,
-          'gpu_mesh',
-          num_global_devices=num_global_devices,
-          num_clients=num_clients,
-          client_id=client_id,
-          device_type='GPU')
-    else:
-      mesh = dtensor.create_mesh(
-          mesh_dims,
-          'gpu_mesh',
-          devices=[f'GPU:{i}' for i in range(args.num_accelerator)])
-  elif args.device_type == 'TPU':
-    # TPU doesn't work with virtual devices.
-    tpu_devices = tf.config.list_logical_devices('TPU')
-    if len(tpu_devices) < args.num_accelerator:
-      raise ValueError(f'Expect {args.num_accelerator} physical devices for '
-                       f'{args.device_type}, got device list: {tpu_devices}')
-    tf.experimental.dtensor.initialize_tpu_system()
-    if is_distribute_training:
-      # create_distributed_mesh requires user to not provide any optional args
-      # for TPU mesh
-      mesh = dtensor.create_distributed_mesh(
-          mesh_dims, 'tpu_mesh', device_type='TPU')
-    else:
-
-      mesh = dtensor.create_mesh(
-          mesh_dims,
-          'tpu_mesh',
-          devices=[f'TPU:{i}' for i in range(args.num_accelerator)])
-  else:
-    if is_distribute_training:
-      mesh = dtensor.create_distributed_mesh(
-          mesh_dims,
-          'cpu_mesh',
-          num_global_devices=num_global_devices,
-          num_clients=num_clients,
-          client_id=client_id,
-          device_type='CPU')
-    else:
-      mesh = dtensor.create_mesh(mesh_dims, 'cpu_mesh', devices=cpu_devices)
+  mesh = dtensor.create_distributed_mesh(mesh_dims, device_type=args.device_type)
 
   # ============================ Training ============================
   max_sequence_length = args.truncate_sequence_length or data_sequence_length
