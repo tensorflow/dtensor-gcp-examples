@@ -26,6 +26,8 @@ else
 fi
 
 cat > cluster-run.sh <<EOF
+trap 'trap "" SIGTERM; kill 0; wait; ' EXIT
+
 PIDS=()
 mkdir -p /tmp/dtensor/pids
 for ((i=0;i<$NUM_WORKERS;i++)); do
