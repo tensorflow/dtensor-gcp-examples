@@ -27,7 +27,6 @@ else
 fi
 
 cat > cluster-run.sh <<EOF
-trap 'trap "" SIGTERM; kill 0; wait; ' EXIT
 PIDS=()
 mkdir -p /tmp/dtensor/pids
 for i in ${INSTANCES[@]}; do
@@ -38,13 +37,26 @@ for i in ${INSTANCES[@]}; do
   echo \$i > "/tmp/dtensor/pids/\${CPID}"
 done
 
+# OSX doesn't have tail --pid.
+function ptail {
+( PID=\$1
+  shift
+  tail \$* &
+  TPID=\$!
+  trap 'kill \${TPID};' EXIT
+  while true; do
+    if ! ps -p \${PID} > /dev/null; then
+      exit 0
+    fi
+    sleep 0.1
+  done
+)
+}
+
 for CPID in \${PIDS[@]}; do
   NODE=\$(cat /tmp/dtensor/pids/\${CPID})
   echo ===Log from "\${NODE}"===
-  tail -c +0 -f /tmp/${NAME}_\${NODE}.log &
-  TPID=\$!
-  wait -fn \${CPID}
-  kill \${TPID}
+  ptail \${CPID} -c +0 -f /tmp/${NAME}_\${NODE}.log
 done
 EOF
 
