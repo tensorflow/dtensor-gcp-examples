@@ -53,6 +53,9 @@ while bash cluster-run.sh ls |grep 'exited with return code'; do
   sleep 10
 done
 
+# TODO: Remove the version pinning after tpu 1vm images are up-to-date.
+bash cluster-run.sh pip3 install tf-models-nightly tensorflow-text-nightly==2.10.0.dev20220718
+
 bash cluster-run.sh "if ! [[ -d dtensor-gcp-examples ]]; then git clone https://github.com/tensorflow/dtensor-gcp-examples; fi"
 bash cluster-run.sh "cd dtensor-gcp-examples; git pull;"
 bash cluster-run.sh "ls -l dtensor-gcp-examples;"
