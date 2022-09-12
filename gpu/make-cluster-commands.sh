@@ -14,8 +14,9 @@
 # limitations under the License.
 
 
-ZONE=$1
-shift
+NAME=$1
+ZONE=$2
+shift; shift
 INSTANCES=($*)
 
 # If there is a proxy, use it (For Googlers).
@@ -30,18 +31,32 @@ PIDS=()
 mkdir -p /tmp/dtensor/pids
 for i in ${INSTANCES[@]}; do
   echo Running on "\${i}" "\$*"
-  gcloud compute ssh \$i --zone=$ZONE -- -t -q -n "-o ProxyCommand=corp-ssh-helper %h %p" bash -c -l "'\$*'" > /tmp/\${i}.log 2>&1 &
+  gcloud compute ssh \$i --zone=$ZONE -- -t -q -n "-o ProxyCommand=corp-ssh-helper %h %p" bash -c -l "'\$*'" > /tmp/${NAME}_\${i}.log 2>&1 &
   CPID=\$!
   PIDS+=("\${CPID}")
   echo \$i > "/tmp/dtensor/pids/\${CPID}"
 done
 
-while [[ -n "\${PIDS}" ]]; do
-  wait -p CPID -fn "\${PIDS[@]}"
-  PIDS=(\${PIDS[@]/\$CPID})
+# OSX doesn't have tail --pid.
+function ptail {
+( PID=\$1
+  shift
+  tail \$* &
+  TPID=\$!
+  trap 'kill \${TPID};' EXIT
+  while true; do
+    if ! ps -p \${PID} > /dev/null; then
+      exit 0
+    fi
+    sleep 0.1
+  done
+)
+}
+
+for CPID in \${PIDS[@]}; do
   NODE=\$(cat /tmp/dtensor/pids/\${CPID})
   echo ===Log from "\${NODE}"===
-  cat /tmp/\${NODE}.log
+  ptail \${CPID} -c +0 -f /tmp/${NAME}_\${NODE}.log
 done
 EOF
 

@@ -53,7 +53,7 @@ for i in `seq -s " " -f %03g 1 $COUNT`; do
   INSTANCES+=("${NAME_PREFIX}-${i}")
 done
 
-bash `dirname $0`/../make-cluster-commands.sh "${ZONE}" "${INSTANCES[@]}"
+bash `dirname $0`/../make-cluster-commands.sh "${NAME_PREFIX}" "${ZONE}" "${INSTANCES[@]}"
 
 set -x
 gcloud compute instances bulk create --predefined-names=$(printf "%s," ${INSTANCES[@]} | sed 's/,$//') \
@@ -98,9 +98,9 @@ bash cluster-run.sh "ls -l dtensor-gcp-examples;"
 cat <<EOF
 Next, run the application with,
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET}"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-app-naive.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/app_naive"
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}"
+  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-keras-bert.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/keras_bert"
 
 When done, delete the cluster with,
 

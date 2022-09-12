@@ -28,7 +28,7 @@ fi
 TOPOLOGY=$1
 NAME="${USER}-dtensor-tpu-${TOPOLOGY}-test"
 ZONE=europe-west4-a
-VERSION="tpu-vm-tf-2.9.1"
+VERSION="v2-nightly"
 NUM_CORES=$(cut -d "-" -f2- <<< $TOPOLOGY)
 export NUM_WORKERS=$(($NUM_CORES / 8))
 export GCS_BUCKET=${GCS_BUCKET:-dtensor-checkpoints}
@@ -52,6 +52,9 @@ while bash cluster-run.sh ls |grep 'exited with return code'; do
   echo Health checking
   sleep 10
 done
+
+# TODO: Remove the version pinning after tpu 1vm images are up-to-date.
+bash cluster-run.sh pip3 install tf-models-nightly tensorflow-text-nightly==2.10.0.dev20220718
 
 bash cluster-run.sh "if ! [[ -d dtensor-gcp-examples ]]; then git clone https://github.com/tensorflow/dtensor-gcp-examples; fi"
 bash cluster-run.sh "cd dtensor-gcp-examples; git pull;"
@@ -84,9 +87,9 @@ bash cluster-bcast.sh launch ./
 cat <<EOF
 Next, run the application with,
 
-  bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-app-naive.py --prefix=gs://${GCS_BUCKET} --device-type=TPU"
+  bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-app-naive.py --ckpt_path_prefix=gs://${GCS_BUCKET}/app_naive --device_type=TPU"
 
-  bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-keras-bert.py --prefix=gs://${GCS_BUCKET}  --device-type=TPU"
+  bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-keras-bert.py --ckpt_path_prefix=gs://${GCS_BUCKET}/keras_bert  --device_type=TPU"
 
 When done, delete the cluster with,
 
