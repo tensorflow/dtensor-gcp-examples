@@ -87,9 +87,9 @@ sed "/^@DTENSOR_JOBS_LIST@$/c${DTENSOR_JOBS_LIST}" launch.py.in > launch
 chmod +x launch
 
 bash cluster-run.sh "sudo /opt/conda/bin/conda clean -q -y --all"
-bash cluster-run.sh "conda create -q -y -n py310 python=3.10"
-bash cluster-run.sh "conda activate py310; pip install -q tf-nightly tf-models-nightly"
-
+bash cluster-run.sh "conda create -q -y -n py3 python=3.8"
+bash cluster-bcast.sh requirements.txt ./
+bash cluster-run.sh "conda activate py3; pip install -r requirements.txt"
 bash cluster-bcast.sh launch ./
 bash cluster-run.sh "if ! [[ -d dtensor-gcp-examples ]]; then git clone https://github.com/tensorflow/dtensor-gcp-examples; fi"
 bash cluster-run.sh "cd dtensor-gcp-examples; git pull"
@@ -98,9 +98,9 @@ bash cluster-run.sh "ls -l dtensor-gcp-examples;"
 cat <<EOF
 Next, run the application with,
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-app-naive.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/app_naive"
+  bash cluster-run.sh "conda activate py3; ./launch python dtensor-gcp-examples/dtensor-app-naive.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/app_naive"
 
-  bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-keras-bert.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/keras_bert"
+  bash cluster-run.sh "conda activate py3; ./launch python dtensor-gcp-examples/dtensor-keras-bert.py --device_type=GPU --ckpt_path_prefix=gs://${GCS_BUCKET}/keras_bert"
 
 When done, delete the cluster with,
 

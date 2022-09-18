@@ -18,3 +18,9 @@ cluster of GPUs or TPUs.
   export GCS_BUCKET=<bucket_name>
   ```
   or edit bootstrap.sh.
+
+
+# For maintainers
+
+Since this requires tf-nightly, periodically update requirements.txt in
+each directory to known 'good' versions for these examples.
