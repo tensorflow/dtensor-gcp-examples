@@ -7,7 +7,8 @@ on GCP with a cluster of GPUs.
 ## Description
 
 - `gce-cluster/`: First build a cluster of 4 GCE 2GPU VMs, then run 1
-  DTensor client per VM.
+  DTensor client per VM. Note that the network configuration of these GPU VMs
+  are likely not optimal.
 
 - `gce-node/`: First build a single GCE GPU VM with 8 gpus, then run 1
   client per GPU on the VM. For each DTensor client, the unwanted GPUs are

@@ -21,7 +21,7 @@
 # The git repo is cloned to the VMs.
 
 if [ $# -ne 1 ]; then
-  echo 1>&2 "$0: need to specify a TPU topology"
+  echo 1>&2 "$0: need to specify a TPU topology. e.g. v2-8"
   exit 2
 fi
 
@@ -53,8 +53,8 @@ while bash cluster-run.sh ls |grep 'exited with return code'; do
   sleep 10
 done
 
-# TODO: Remove the version pinning after tpu 1vm images are up-to-date.
-bash cluster-run.sh pip3 install tf-models-nightly tensorflow-text-nightly==2.10.0.dev20220718
+bash cluster-bcast.sh requirements.txt ./
+bash cluster-run.sh pip3 install -r requirements.txt
 
 bash cluster-run.sh "if ! [[ -d dtensor-gcp-examples ]]; then git clone https://github.com/tensorflow/dtensor-gcp-examples; fi"
 bash cluster-run.sh "cd dtensor-gcp-examples; git pull;"

@@ -1,0 +1,2 @@
+tf-models-nightly==2.9.0.dev20220718
+tensorflow-text-nightly==2.10.0.dev20220718
