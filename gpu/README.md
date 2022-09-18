@@ -47,10 +47,9 @@ $ cd dtensor-gcp-examples/gpu
 # Run from the cluster deployment:
 $ cd gce-cluster
 $ bash bootstrap.sh
-$ bash cluster-run.sh "conda activate py310; ./launch python dtensor-gcp-examples/dtensor-app-naive.py"
+$ bash cluster-run.sh "conda activate py3; ./launch python dtensor-gcp-examples/dtensor_app_naive.py"
 $ bash cluster-delete.sh
 ```
-
 
 ## Running as single-client
 
@@ -60,6 +59,6 @@ Just skip `./launch` and run the script as a regular python application:
 ```
 $ cd gce-node
 $ bash bootstrap.sh
-$ bash cluster-run.sh "conda activate py310; TF_CPP_MIN_LOG_LEVEL=3 python dtensor-gcp-examples/dtensor-app-naive.py"
+$ bash cluster-run.sh "conda activate py3; TF_CPP_MIN_LOG_LEVEL=3 python dtensor-gcp-examples/dtensor_app_naive.py"
 $ bash cluster-delete.sh
 ```

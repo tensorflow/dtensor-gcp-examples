@@ -36,7 +36,7 @@ $ git clone ...
 $ cd dtensor-gcp-examples/tpu
 
 $ bash bootstrap.sh v2-8
-$ bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-app-naive.py --device_type=TPU"
+$ bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor_app_naive.py --device_type=TPU"
 $ bash cluster-delete.sh
 ```
 
@@ -53,6 +53,6 @@ $ git clone ...
 $ cd dtensor-gcp-examples/tpu
 
 $ bash bootstrap.sh v2-32
-$ bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-app-naive.py --device_type=TPU"
+$ bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor_app_naive.py --device_type=TPU"
 $ bash cluster-delete.sh
 ```

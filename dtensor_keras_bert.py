@@ -29,7 +29,7 @@ Sample usage:
 This will run the Bert model with a 4x2 mesh (data x model).
 
 ```
-python dtensor-bert-train.py --model_size=tiny --device_type=GPU \
+python dtensor_bert_train.py --model_size=tiny --device_type=GPU \
   --num_accelerator=8 --distribution_mode=batchmodel
 ```
 
@@ -37,7 +37,7 @@ python dtensor-bert-train.py --model_size=tiny --device_type=GPU \
 This will run the Bert model with data parallel only.
 
 ```
-python dtensor-bert-train.py --model_size=base --device_type=GPU \
+python dtensor_bert_train.py --model_size=base --device_type=GPU \
   --num_global_devices=8 --distribution_mode=batch
 ```
 
@@ -46,7 +46,7 @@ This will run the Bert model with a 2x4 mesh (data x model), which is different
 from the usage1.
 
 ```
-python dtensor-bert-train.py --model_size=base --device_type=GPU \
+python dtensor_bert_train.py --model_size=base --device_type=GPU \
   --num_global_devices=8 --distribution_mode=batchmodel --model_parallel_dim_size=4
 ```
 
@@ -55,7 +55,7 @@ This will run the Bert model with a 4x2 mesh (data x model).
 ! Note that the TPU instance need run with in as "TPU VM architecture" (1 VM).
 
 ```
-python dtensor-bert-train.py --model_size=base --device_type=TPU \
+python dtensor_bert_train.py --model_size=base --device_type=TPU \
   --num_global_devices=8 --distribution_mode=batchmodel
 ```
 
@@ -68,7 +68,7 @@ a distributed mesh with 8x2 (data x model).
 env DTENSOR_CLIENT_ID=0 DTENSOR_NUM_CLIENTS=2 \
     DTENSOR_JOB_NAME=training \
     DTENSOR_JOBS=host1:9991,host2:9991 \
-python dtensor-bert-train.py --model_size=base --device_type=GPU \
+python dtensor_bert_train.py --model_size=base --device_type=GPU \
   --num_global_devices=16
 ```
 
@@ -76,7 +76,7 @@ python dtensor-bert-train.py --model_size=base --device_type=GPU \
 env DTENSOR_CLIENT_ID=1 DTENSOR_NUM_CLIENTS=2 \
     DTENSOR_JOB_NAME=training \
     DTENSOR_JOBS=host1:9991,host2:9991 \
-python dtensor-bert-train.py --model_size=base --device_type=GPU \
+python dtensor_bert_train.py --model_size=base --device_type=GPU \
   --num_global_devices=16
 ```
 
@@ -142,7 +142,9 @@ ap.add_argument(
     '--truncate_sequence_length',
     default=0,
     type=int,
-    help='Truncates sequence in pretraining and data. 0 means no truncation.')
+    help='Truncates sequence in pretraining and data. 0 means no truncation.'
+         'Setting this to a small number (32) drastically increases training '
+         'speed.')
 
 # Parameters for distribution(dtensor)
 

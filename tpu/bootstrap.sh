@@ -87,7 +87,7 @@ bash cluster-bcast.sh launch ./
 cat <<EOF
 Next, run the application with,
 
-  bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-app-naive.py --ckpt_path_prefix=gs://${GCS_BUCKET}/app_naive --device_type=TPU"
+  bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor_app_naive.py --ckpt_path_prefix=gs://${GCS_BUCKET}/app_naive --device_type=TPU"
 
   bash cluster-run.sh "./launch python3 dtensor-gcp-examples/dtensor-keras-bert.py --ckpt_path_prefix=gs://${GCS_BUCKET}/keras_bert  --device_type=TPU"
 
